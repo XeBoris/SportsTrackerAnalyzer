@@ -1,0 +1,4 @@
+
+ENVNAME=.env
+
+deactivate
