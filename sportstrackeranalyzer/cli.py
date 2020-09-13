@@ -96,6 +96,8 @@ def main():
 
             p = rt.get_session_Ids()
             print(p)
+
+            rt.import_runtastic_sessions()
     return 0
 
 

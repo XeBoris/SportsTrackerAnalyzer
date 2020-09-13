@@ -30,10 +30,10 @@ def load_db(db_type=None,
     dbh.set_db_path(db_path=db_path)
     dbh.set_db_name(db_name=db_name)
 
-    db_user = dbh.test_db_user()
-    db_tracks = dbh.test_db_tracks()
+    db_file_exists = dbh.get_database_exists()
+    db_tables_exists = dbh.get_database_tables_exists()
 
-    if db_user is True and db_tracks is True:
+    if db_file_exists is True and db_tables_exists is True:
         db = {'db_name': db_name, 'db_type': db_type, 'db_path': db_path}
 
         db_temp = ShelveHandler()
@@ -74,13 +74,13 @@ def set_user(db_user=None):
     dbh.set_db_name(db_name=db_dict["db_name"])
 
     #test if requested user is part of the database
-    search_result = dbh.search_user( {"user_username": db_user})
-    nb_search_result = len(search_result)-1
+    search_result = dbh.search_user(db_user, by="username")
+    nb_search_result = len(search_result)
 
     if len(search_result) == 1:
         #Update Shelve:
-        db = {"db_user": db_user,
-              "db_hash": search_result[0]}
+        db = {"db_user": search_result[0].get("user_username"),
+              "db_hash": search_result[0].get("user_hash")}
 
         db_temp.write_shelve(db)
         print(f"Assume to add tracks for user: {db_user}")
@@ -89,22 +89,21 @@ def set_user(db_user=None):
         print("Add user first...")
     else:
         print("We have found multiple user ids. Please select the one you are referring to:")
-        for k, i_hash in enumerate(search_result):
-            db_entry = dbh.search_user_by_hash(hash=i_hash)
+        for k, db_entry in enumerate(search_result):
+
             p = "[{k}] | Name: {user_surname} {user_lastname} | Username: {user_username}".format(k=k,
                                                                                               user_surname=db_entry.get("user_surname"),
                                                                                               user_lastname=db_entry.get("user_lastname"),
                                                                                               user_username=db_entry.get("user_username")
                                                                                               )
             print(p)
-        selected_hash = input(f"Select number 0 to {nb_search_result}: ")
+        print("Choose a number:")
+        selected_hash = input(f"Select number 0 to {nb_search_result-1}: ")
         selected_hash = search_result[int(selected_hash)]
 
-        db_entry = dbh.search_user_by_hash(hash=selected_hash)
-
         #Update Shelve:
-        db = {"db_user": db_entry.get("user_username"),
-              "db_hash": db_entry.get("user_hash")}
+        db = {"db_user": selected_hash.get("user_username"),
+              "db_hash": selected_hash.get("user_hash")}
 
         db_temp.write_shelve(db)
 

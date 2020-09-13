@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import hashlib
+from tinydb import TinyDB, Query
 
 class FileDataBase(object):
     """
@@ -31,8 +32,9 @@ class FileDataBase(object):
             self._db_name = "db0"
 
         #create the individual database names from the names
-        self._db_user_name = "{0}_users.csv".format(self._db_name)
-        self._db_tracks_name = "{0}_tracks.csv".format(self._db_name)
+        self._db_name_final = f"db-{self._db_name}.tiny"
+        self._db_table_users = f"db_{self._db_name}_users"
+        self._db_table_tracks = f"db_{self._db_name}_branches"
 
     def create_db_user(self):
         self._setup()
@@ -48,16 +50,14 @@ class FileDataBase(object):
             print("Data location exists already")
             print(" - ", self._db_path)
 
-
-        if os.path.exists(os.path.join(self._db_path, self._db_user_name)) is False:
-            f = open(os.path.join(self._db_path, self._db_user_name), "w")
-            f.write("|#- SportsTrackerAnalyzer User Database")
-            f.close()
-            print("SportsTrackerAnalyzer User Database created under:")
-            print(" - ", os.path.join(self._db_path, self._db_user_name))
+        if self._test_db_table_exists(self._db_table_users) is False:
+            db = TinyDB(os.path.join(self._db_path, self._db_name_final))
+            tb = db.table(self._db_table_users)
+            tb.insert({"init": {"version": 1, "table": self._db_table_users}})
+            db.close()
+            print(f"TinyDB database {self._db_name_final} created wit table {self._db_table_users}")
         else:
-            print("SportsTrackerAnalyzer User Database exists already under:")
-            print(" - ", os.path.join(self._db_path, self._db_user_name))
+            print(f"TinyDB table {self._db_table_users} exists already")
 
     def create_db_tracks(self):
         self._setup()
@@ -73,35 +73,57 @@ class FileDataBase(object):
             print("Data location exists already")
             print(" - ", self._db_path)
 
-        if os.path.exists(os.path.join(self._db_path, self._db_tracks_name)) is False:
-            f = open(os.path.join(self._db_path, self._db_tracks_name), "w")
-            f.write("|#- SportsTrackerAnalyzer Tracks Database")
-            f.close()
-            print("SportsTrackerAnalyzer Tracks Database created under:")
-            print(" - ", os.path.join(self._db_path, self._db_tracks_name))
+        if self._test_db_table_exists(self._db_table_tracks) is False:
+            db = TinyDB(os.path.join(self._db_path, self._db_name_final))
+            tb = db.table(self._db_table_tracks)
+            tb.insert({"init": {"version": 1, "table": self._db_table_tracks}})
+            db.close()
+            print(f"TinyDB database {self._db_name_final} created wit table {self._db_table_tracks}")
         else:
-            print("SportsTrackerAnalyzer Tracks Database exists already under:")
-            print(" - ", os.path.join(self._db_path, self._db_tracks_name))
+            print(f"TinyDB table {self._db_table_tracks} exists already")
 
-    def test_db_user(self):
-        self._setup()
-
+    def _test_db_exists(self):
+        """
+        Private member function
+        :return:
+        """
         exists = False
-        if os.path.join(self._db_path, self._db_user_name):
-            #another validity check (?)
+        if os.path.exists(os.path.join(self._db_path, self._db_name_final)):
             exists = True
-
         return exists
 
-    def test_db_tracks(self):
+    def _test_db_table_exists(self, tablename):
+        """
+        private member function
+        :param tablename:
+        :return:
+        """
+        exists = False
+        if self._test_db_exists():
+            db = TinyDB(os.path.join(self._db_path, self._db_name_final))
+            all_tables = db.tables()
+            if tablename in all_tables:
+                exists = True
+        return exists
+
+    def get_database_exists(self):
+        self._setup()
+        return self._test_db_exists()
+
+    def get_database_tables_exists(self):
+        """
+        Check if all required tables are created during initial creation process
+        :return:
+        """
         self._setup()
 
-        exists = False
-        if os.path.join(self._db_path, self._db_tracks_name):
-            # another validity check (?)
-            exists = True
-
-        return exists
+        no_missing_table = True
+        for i_table in [self._db_table_users, self._db_table_tracks]:
+            table_exists = self._test_db_table_exists(i_table)
+            if table_exists is False:
+                no_missing_table = False
+                break
+        return no_missing_table
 
     def create_user(self, init_user_dictionary=None):
         self._setup()
@@ -113,43 +135,33 @@ class FileDataBase(object):
         uuid_hash = str(uuid.uuid4()).split("-")[0]
         init_user_dictionary['user_hash'] = f"{md5_hash}{uuid_hash}"
 
-        f = open(os.path.join(self._db_path, self._db_user_name), "a")
-        f.write(json.dumps(init_user_dictionary)+"\n")
-        f.close()
+        #ToDO Write some exceptions:
+        db = TinyDB(os.path.join(self._db_path, self._db_name_final))
+        db.default_table_name = self._db_table_users
+        db.insert(init_user_dictionary)
+        db.close()
 
-    def search_user(self, pairs=None):
+
+    def search_user(self, user, by="username"):
         self._setup()
 
-        if isinstance(pairs, dict):
-            pairs = [pairs]
+        #ToDO Write some exceptions:
+        db = TinyDB(os.path.join(self._db_path, self._db_name_final))
+        db.default_table_name = self._db_table_users
 
-        f = open(os.path.join(self._db_path, self._db_user_name), "r")
+        User = Query()
+        p = []
+        if by == "username":
+            p = db.search(User.user_username == user)
+        elif by == "surname":
+            p = db.search(User.user_surname == user)
+        elif by == "lastname":
+            p = db.search(User.user_lastname == user)
+        elif by == "hash":
+            p = db.search(User.user_hash == user)
 
-        f_ids = []
-        for i_user in f:
-            #ignore comments:
-            if i_user.find("|#-") == 0:
-                continue
-            if len(i_user) == 0:
-                continue
-
-            i_obj = json.loads(i_user)
-
-            for i_search in pairs:
-                i_key = list(i_search.keys())[0]
-                i_val = list(i_search.values())[0]
-
-                if i_obj.get(i_key) != i_val:
-                    #We skip the individual search pair of key/value if not existing in i_obj
-                    continue
-
-                if i_obj.get("user_hash") not in f_ids:
-                    #if key/value exists we add the hash
-                    f_ids.append(i_obj.get("user_hash"))
-
-        f.close()
-
-        return f_ids
+        db.close()
+        return p
 
     def search_user_by_hash(self, hash=None):
         self._setup()
@@ -188,3 +200,126 @@ class FileDataBase(object):
 
         f.close()
         return ret
+
+     #This part handles write/read operations on the tracks database:
+    #  - Tracks are like branches of a tree
+    def _open_tiny_db(self):
+        self._setup()
+        self.db = TinyDB(os.path.join(self._db_path, self._db_name_final))
+        self.db.default_table_name = self._db_table_tracks  # <- tracks are branches!
+        self.user = Query()
+
+    def _close_tiny_db(self):
+        self.db.close()
+
+
+
+    def write_branch(self,
+                     db_operation="new",
+                     track=None,
+                     track_hash=None
+                     ):
+        """
+        A track has is a branch. And each branch will have leaves!
+        To write a branch/track with write_branch(..) you can create a "new" branch or
+        "update" an existing branch with this function.
+        :param db_operation:
+        :param track:
+        :return:
+        """
+        self._open_tiny_db()
+        print("sss")
+        if db_operation == "new" and track_hash is not None and track is not None:
+            find_hash = self.db.get(self.user["track_hash"] == track_hash)
+            if find_hash is None:
+                self.db.insert(track)
+            else:
+                print("No new entry possible")
+        elif db_operation == "update" and track_hash is not None and track is not None:
+            #identify first
+            find_hash = self.db.get(self.user["track_hash"] == track_hash)
+            if find_hash is None:
+                # This if conditions behavies like the "new" option
+                self.db.insert(track)
+            elif find_hash is not None:
+                # Update dictionary with new track information:
+                find_hash.update(track)
+                # Get hash ID from database for update procedure
+                find_hash_id = find_hash.doc_id
+                # Update a branch if existing!
+                self.db.update(find_hash, doc_ids=[find_hash_id])
+            else:
+                print("do something else")
+
+        else:
+            print("You are trying to handling an unknown database operation!")
+        self._close_tiny_db()
+
+    def read_branch(self, key=None, attribute=None):
+        self._open_tiny_db()
+        db_entry = self.db.search(self.user[key] == attribute)
+        self._close_tiny_db()
+        return db_entry
+
+    #This part handles write/read operation on metadata
+    #  - metadata to tracks are like leaves which belong to branch
+
+    def write_leaf(self,
+                   directory=None,
+                   track_hash=None,
+                   leaf_hash=None,
+                   leaf_config=None,
+                   leaf=None,
+                   leaf_type=None
+                   ):
+        """
+        Writing a leaf consist of two operations:
+        1) Write the leaf
+        2) Adjust the track/branch record
+        :param directory:
+        :param track_hash:
+        :param leaf_hash:
+        :param leaf_config:
+        :param leaf:
+        :param leaf_type:
+        :return:
+        """
+
+        if os.path.exists(os.path.join(directory)) is False:
+            os.makedirs(directory)
+
+        self._open_tiny_db()
+
+        # Get the according branch/track from the tinyDB
+        find_hash = self.db.get(self.user["track_hash"] == track_hash)
+        if find_hash is None:
+            return False
+        find_hash_id = find_hash.doc_id
+
+        # We start to write/update according to the chosen method:
+        if leaf_type == "DataFrame":
+            # Write the leaf to disk:
+            leaf.to_csv(path_or_buf=os.path.join(directory, f"{leaf_hash}.csv"),
+                        index=False,
+                        #compression="gzip",
+                        )
+
+            # Update the leaf in the track database
+            if 'leaf' not in find_hash:
+                db_entry = {}
+            else:
+                db_entry = find_hash.get("leaf")
+
+            db_entry[leaf_config['name']] = leaf_config
+            self.db.update({'leaf': db_entry}, doc_ids=[find_hash_id])
+
+        # find_hash = self.db.get(self.user["track_hash"] == track_hash)
+        # print(find_hash)
+
+        self._close_tiny_db()
+        return True
+
+    def read_leaf(self):
+        self._open_tiny_db()
+
+        self._close_tiny_db()

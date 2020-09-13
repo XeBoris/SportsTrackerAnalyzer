@@ -22,8 +22,8 @@ class ShelveHandler():
     def write_shelve(self, pairs):
         self._open_shelve()
         for key, value in pairs.items():
-            #self.db[key] = value
-            print(key, value)
+            self.db[key] = value
+            print("Log: Write: ", key, value)
         self._close_shelve()
 
     def delete_shelve_key(self, key):
@@ -36,7 +36,7 @@ class ShelveHandler():
         self._open_shelve()
         ret_dict = {}
         for i_key in keys:
-            ret_dict[i_key] = self.db[i_key]
+            ret_dict[i_key] = self.db.get(i_key)
         self._close_shelve()
 
         return ret_dict
