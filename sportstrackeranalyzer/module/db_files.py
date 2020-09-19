@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import hashlib
+import pandas as pd
 from tinydb import TinyDB, Query
 
 class FileDataBase(object):
@@ -285,8 +286,8 @@ class FileDataBase(object):
         :return:
         """
 
-        if os.path.exists(os.path.join(directory)) is False:
-            os.makedirs(directory)
+        if os.path.exists(os.path.join(self._db_path, directory)) is False:
+            os.makedirs(self._db_path, directory)
 
         self._open_tiny_db()
 
@@ -299,7 +300,7 @@ class FileDataBase(object):
         # We start to write/update according to the chosen method:
         if leaf_type == "DataFrame":
             # Write the leaf to disk:
-            leaf.to_csv(path_or_buf=os.path.join(directory, f"{leaf_hash}.csv"),
+            leaf.to_csv(path_or_buf=os.path.join(self._db_path, directory, f"{leaf_hash}.csv"),
                         index=False,
                         #compression="gzip",
                         )
@@ -313,13 +314,31 @@ class FileDataBase(object):
             db_entry[leaf_config['name']] = leaf_config
             self.db.update({'leaf': db_entry}, doc_ids=[find_hash_id])
 
-        # find_hash = self.db.get(self.user["track_hash"] == track_hash)
-        # print(find_hash)
 
         self._close_tiny_db()
         return True
 
-    def read_leaf(self):
-        self._open_tiny_db()
+    def read_leaf(self,
+                  directory=None,
+                  leaf_hash=None,
+                  leaf_type=None
+                  ):
 
-        self._close_tiny_db()
+        # not used,... maybe later
+        #self._open_tiny_db()
+        #self._close_tiny_db()
+
+        # create the data path:
+        data_path = os.path.join(self._db_path, directory, f"{leaf_hash}.csv")
+
+        df = None
+
+        if leaf_type == "DataFrame" and os.path.exists(data_path) is True:
+            df = pd.read_csv(data_path)
+        elif leaf_type == "something" and os.path.exists(data_path) is True:
+            df = None
+        else:
+            df = None
+
+        return df
+

@@ -74,8 +74,14 @@ class DataBaseHandler(FileDataBase):
                                              leaf=leaf,
                                              leaf_type=leaf_type)
 
-    def read_leaf(self):
-        return self._handler_type.read_leaf()
+    def read_leaf(self,
+                  directory=None,
+                  leaf_hash=None,
+                  leaf_type=None
+                  ):
+        return self._handler_type.read_leaf(directory=directory,
+                                            leaf_hash=leaf_hash,
+                                            leaf_type=leaf_type)
 
 
     # Gets:

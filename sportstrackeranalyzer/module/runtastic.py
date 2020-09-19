@@ -7,10 +7,12 @@ import pandas as pd
 from .db_handler import DataBaseHandler
 from .shelve_handler import ShelveHandler
 
+
 class Blueprint():
     """
     This class allows us to
     """
+
     def __init__(self):
         pass
 
@@ -45,19 +47,52 @@ class Blueprint():
         blueprint["end_time"] = json_info.get("end_time")
         blueprint["created_at"] = json_info.get("created_at")
         blueprint["updated_at"] = json_info.get("updated_at")
-        blueprint["title"] = json_info.get("notes")  #In runtastic notation: notes = title
+        blueprint["title"] = json_info.get("notes")  # In runtastic notation: notes = title
         blueprint["notes"] = json_info.get("notes")
         blueprint["start_time_timezone_offset"] = json_info.get("start_time_timezone_offset")
         blueprint["end_time_timezone_offset"] = json_info.get("end_time_timezone_offset")
         blueprint["sports_type"] = self.RuntasticSportsMapping(json_info.get("sport_type_id"))
-        blueprint["source"] = "RTDB" #Stands for Runtastic Database, no versioning since not observed
+        blueprint["source"] = "RTDB"  # Stands for Runtastic Database, no versioning since not observed
+
+        return blueprint
+
+    def RuntasticMetadata(self, json_info):
+        """
+        Aim: Extract meta data information about the area and weather which
+        is included in the database dump
+
+        :param json_info:
+        :return:
+        """
+        blueprint = {}
+        blueprint["average_speed"] = json_info.get("average_speed")
+        blueprint["calories"] = json_info.get("calories")
+        blueprint["longitude"] = json_info.get("longitude")
+        blueprint["latitude"] = json_info.get("latitude")
+        blueprint["max_speed"] = json_info.get("max_speed")
+        blueprint["pause_duration"] = json_info.get("pause_duration")
+        blueprint["duration_per_km"] = json_info.get("duration_per_km")
+        blueprint["pulse_avg"] = json_info.get("pulse_avg")
+        blueprint["pulse_max"] = json_info.get("pulse_max")
+        blueprint["avg_cadence"] = json_info.get("avg_cadence")
+        blueprint["max_cadence"] = json_info.get("max_cadence")
+        blueprint["manual"] = json_info.get("manual")
+        blueprint["edited"] = json_info.get("edited")
+        blueprint["completed"] = json_info.get("completed")
+        blueprint["live_tracking_active"] = json_info.get("live_tracking_active")
+        blueprint["live_tracking_enabled"] = json_info.get("live_tracking_enabled")
+        blueprint["cheering_enabled"] = json_info.get("cheering_enabled")
+        blueprint["indoor"] = json_info.get("indoor")
+        blueprint["weather_condition_id"] = json_info.get("weather_condition_id")
+        blueprint["surface_id"] = json_info.get("surface_id")
+        blueprint["subjective_feeling_id"] = json_info.get("subjective_feeling_id")
 
         return blueprint
 
     def RuntasticSessionLonLat(self, json_info):
 
         blueprint = {}
-        #print(len(json_info))
+        # print(len(json_info))
 
         for i_obj in json_info:
             ts = i_obj["timestamp"]
@@ -87,13 +122,13 @@ class Blueprint():
             blueprint[ts] = {}
             blueprint[ts]["version"] = i_obj["version"]
             blueprint[ts]["elevation"] = i_obj["elevation"]
-            blueprint[ts]["source_type"] = i_obj["source_type"]
             blueprint[ts]["duration"] = i_obj["duration"]
             blueprint[ts]["distance"] = i_obj["distance"]
             blueprint[ts]["elevation_gain"] = i_obj["elevation_gain"]
             blueprint[ts]["elevation_loss"] = i_obj["elevation_loss"]
 
         return blueprint
+
 
 class Runtastic():
 
@@ -109,6 +144,7 @@ class Runtastic():
         self.path_weight = None
 
         self.bp = Blueprint()
+
     def _read_json(self, fjson):
         """
         A simple private member function for reading a json file
@@ -159,9 +195,6 @@ class Runtastic():
         """
         pass
 
-
-
-
     def _read_session_by_id_from_database(self, session_id):
         """
         We will read the Runtastic database dump in
@@ -169,25 +202,29 @@ class Runtastic():
         :param session_id:
         :return:
         """
-        #create temporally session path:
+        # create temporally session path:
         json_path_info = os.path.join(self.path_sessions, f"{session_id}.json")
         json_path_gps = os.path.join(self.path_sessions, "GPS-data", f"{session_id}.json")
         json_path_elv = os.path.join(self.path_sessions, "Elevation-data", f"{session_id}.json")
 
-        #read session info:
+        # read session info:
         json_info = self._read_json(json_path_info)
 
+        # We will receive meta data from RunTastic First:
+        json_info_meta = self.bp.RuntasticMetadata(json_info)
+
+        # We extract timestamps and timestamp names
         dtime = datetime.datetime.utcfromtimestamp(json_info["start_time"] / 1000).strftime('%Y-%m-%dT%H:%M:%SZ')
         dtime_name = datetime.datetime.utcfromtimestamp(json_info["start_time"] / 1000).strftime('%Y-%m-%d-%H-%M')
 
-        #print(dtime, dtime_name)
-        #print(json_info)
+        # print(dtime, dtime_name)
+        # print(json_info)
 
-        #We will receive the main Runtastic information about the track
+        # We will receive the main Runtastic information about the track
         json_info = self.bp.RuntasticSession(json_info)
 
-        #We will receive the track (gpx) related information about the track
-        #This needs two steps:
+        # We will receive the track (gpx) related information about the track
+        # This needs two steps:
         # 1) Read and transform the json objects from database dump (if existing)
         # 2) Merge them into one object with all "raw" information what is available
         # - step 1)
@@ -223,13 +260,12 @@ class Runtastic():
         elif len(data_gps) == 0 and len(data_ele) == 0:
             pass
 
-        #data_gpx_final #final gpx object
+        # data_gpx_final #final gpx object
         return {"timestamp": dtime,
                 "timestampName": dtime_name,
                 "json_info": json_info,
+                "json_info_meta": json_info_meta,
                 "gpx": data_gpx_final}
-
-        # json_elv = self._read_json(json_path_elv)
 
     def import_runtastic_sessions(self):
         """
@@ -239,7 +275,7 @@ class Runtastic():
         :return:
         """
 
-        #init a database handler here:
+        # init a database handler here:
         db_temp = ShelveHandler()
         db_dict = db_temp.read_shelve_by_keys(["db_name", "db_type", "db_path", "db_user", "db_hash"])
         if db_dict.get("db_hash") is None:
@@ -284,30 +320,28 @@ class Runtastic():
                 obj_gps_defintion = ["timestamp", "longitude", "latitude",
                                      "altitude", "accuracy_v", "accuracy_h",
                                      "version"]
-                df_sel = df[obj_gps_defintion]
+                df_sel = df[df.columns & obj_gps_defintion]
 
                 # Leaf Configuration:
                 leaf_config = {
-                        "name": "gps",
-                        "track_hash": hash_str,
-                        "columns": obj_gps_defintion
-                    }
+                    "name": "gps",
+                    "track_hash": hash_str,
+                    "columns": obj_gps_defintion
+                }
                 leaf_hash = hashlib.md5(json.dumps(leaf_config).encode("utf-8")).hexdigest()
                 leaf_config['leaf_hash'] = leaf_hash
                 del leaf_config["track_hash"]
 
                 # Write the first leaf:
-                r = dbh.write_leaf(directory=os.path.join(db_dict["db_path"], leaf_config.get("name")),
+                r = dbh.write_leaf(directory=leaf_config.get("name"),
                                    track_hash=hash_str,
                                    leaf_hash=leaf_hash,
                                    leaf_config=leaf_config,
                                    leaf=df_sel,
                                    leaf_type="DataFrame"
-                                  )
+                                   )
                 if r is True:
                     print("First leaf written")
-
-                # print(rt_obj.get("gpx"))
 
                 # SECOND LEAF:
                 # We create a branch which holds only gps relevant information:
@@ -315,7 +349,8 @@ class Runtastic():
                 obj_gps_defintion = ["timestamp", "speed", "duration",
                                      "distance", "elevation_gain", "elevation_loss",
                                      "elevation", "version"]
-                df_sel = df[obj_gps_defintion]
+
+                df_sel = df[df.columns & obj_gps_defintion]
 
                 # Leaf Configuration:
                 leaf_config = {
@@ -328,12 +363,43 @@ class Runtastic():
                 del leaf_config["track_hash"]
 
                 # Write the second leaf:
-                r = dbh.write_leaf(directory=os.path.join(db_dict["db_path"], leaf_config.get("name")),
+                r = dbh.write_leaf(directory=leaf_config.get("name"),
                                    track_hash=hash_str,
                                    leaf_hash=leaf_hash,
                                    leaf_config=leaf_config,
                                    leaf=df_sel,
                                    leaf_type="DataFrame"
-                                  )
+                                   )
                 if r is True:
                     print("Second leaf written")
+
+                # Third Leaf: Meta data information:
+
+                # Extract the json object and put it into a list for the Pandas dataframe:
+                rt_metadata = [rt_obj.get("json_info_meta")]
+
+                df_metadata = pd.DataFrame.from_dict(rt_metadata)
+
+                # We do not extract sub information, so take all columns for the object definiton
+                obj_definition = list(df_metadata.keys())
+
+                # Leaf Configuration:
+                leaf_config = {
+                    "name": "runtastic_metadata",
+                    "track_hash": hash_str,
+                    "columns": obj_definition
+                }
+                leaf_hash = hashlib.md5(json.dumps(leaf_config).encode("utf-8")).hexdigest()
+                leaf_config['leaf_hash'] = leaf_hash
+                del leaf_config["track_hash"]
+
+                # Write the second leaf:
+                r = dbh.write_leaf(directory=leaf_config.get("name"),
+                                   track_hash=hash_str,
+                                   leaf_hash=leaf_hash,
+                                   leaf_config=leaf_config,
+                                   leaf=df_metadata,
+                                   leaf_type="DataFrame"
+                                   )
+                if r is True:
+                    print("Third leaf written")
