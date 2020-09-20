@@ -251,11 +251,18 @@ class Runtastic():
                     ret = val
                     ret["timestamp"] = key
 
+                # adjust timestamp (Move to UTC):
+                ret["timestamp"] = datetime.datetime.strptime(ret["timestamp"], '%Y-%m-%d %H:%M:%S %z').timestamp()
+
                 data_gpx_final.append(ret)
         elif len(data_gps) > 0 and len(data_ele) == 0:
             for key, val in data_gps.items():
                 ret = val
                 ret["timestamp"] = key
+
+                # adjust timestamp (Move to UTC):
+                ret["timestamp"] = datetime.datetime.strptime(ret["timestamp"], '%Y-%m-%d %H:%M:%S %z').timestamp()
+
                 data_gpx_final.append(ret)
         elif len(data_gps) == 0 and len(data_ele) == 0:
             pass
@@ -267,7 +274,7 @@ class Runtastic():
                 "json_info_meta": json_info_meta,
                 "gpx": data_gpx_final}
 
-    def import_runtastic_sessions(self):
+    def import_runtastic_sessions(self, overwrite=False):
         """
         You can always import sessions based on the source of runtastic
         Nevertheless, the type is important of how import the sessions
@@ -287,9 +294,20 @@ class Runtastic():
         dbh.set_db_name(db_name=db_dict["db_name"])
 
         if self.input_type == "database":
+            # This if conditions handles the runtastic database
+            # dump as input only:
+
+            # Get all session IDs first:
             all_session_ids = self._get_all_sport_session_ids()
+
             for session_id in all_session_ids:
+                # Extract runtastic relevant data from the database dump
+                # and fetch the information from the return object, which is
+                # a json object:
                 rt_obj = self._read_session_by_id_from_database(session_id)
+
+                # We will handle now several leafs:
+                # ---------------------------------
 
                 # We create the branch first from the database dump:
                 rt_json = rt_obj.get("json_info")
@@ -322,84 +340,66 @@ class Runtastic():
                                      "version"]
                 df_sel = df[df.columns & obj_gps_defintion]
 
-                # Leaf Configuration:
-                leaf_config = {
-                    "name": "gps",
-                    "track_hash": hash_str,
-                    "columns": obj_gps_defintion
-                }
-                leaf_hash = hashlib.md5(json.dumps(leaf_config).encode("utf-8")).hexdigest()
-                leaf_config['leaf_hash'] = leaf_hash
-                del leaf_config["track_hash"]
+                # Create leaf configuration:
+                leaf_config = dbh.create_leaf_config(leaf_name="gps",
+                                                     track_hash=hash_str,
+                                                     columns=obj_gps_defintion)
 
                 # Write the first leaf:
-                r = dbh.write_leaf(directory=leaf_config.get("name"),
-                                   track_hash=hash_str,
-                                   leaf_hash=leaf_hash,
+                r = dbh.write_leaf(track_hash=hash_str,
                                    leaf_config=leaf_config,
                                    leaf=df_sel,
                                    leaf_type="DataFrame"
                                    )
                 if r is True:
                     print("First leaf written")
+                    del df_sel
 
                 # SECOND LEAF:
                 # We create a branch which holds only gps relevant information:
-                # gps relevant infomation:
+                # gps relevant information:
                 obj_gps_defintion = ["timestamp", "speed", "duration",
                                      "distance", "elevation_gain", "elevation_loss",
                                      "elevation", "version"]
 
+                # Select from dataframe:
                 df_sel = df[df.columns & obj_gps_defintion]
 
-                # Leaf Configuration:
-                leaf_config = {
-                    "name": "distances",
-                    "track_hash": hash_str,
-                    "columns": obj_gps_defintion
-                }
-                leaf_hash = hashlib.md5(json.dumps(leaf_config).encode("utf-8")).hexdigest()
-                leaf_config['leaf_hash'] = leaf_hash
-                del leaf_config["track_hash"]
+                # Create leaf configuration:
+                leaf_config = dbh.create_leaf_config(leaf_name="distances",
+                                                     track_hash=hash_str,
+                                                     columns=obj_gps_defintion)
 
                 # Write the second leaf:
-                r = dbh.write_leaf(directory=leaf_config.get("name"),
-                                   track_hash=hash_str,
-                                   leaf_hash=leaf_hash,
+                r = dbh.write_leaf(track_hash=hash_str,
                                    leaf_config=leaf_config,
                                    leaf=df_sel,
                                    leaf_type="DataFrame"
                                    )
                 if r is True:
                     print("Second leaf written")
+                    del df_sel
 
                 # Third Leaf: Meta data information:
-
+                # ----------------------------------
                 # Extract the json object and put it into a list for the Pandas dataframe:
                 rt_metadata = [rt_obj.get("json_info_meta")]
-
                 df_metadata = pd.DataFrame.from_dict(rt_metadata)
 
-                # We do not extract sub information, so take all columns for the object definiton
+                # We do not extract sub information, so take all columns for the object definition
                 obj_definition = list(df_metadata.keys())
 
-                # Leaf Configuration:
-                leaf_config = {
-                    "name": "runtastic_metadata",
-                    "track_hash": hash_str,
-                    "columns": obj_definition
-                }
-                leaf_hash = hashlib.md5(json.dumps(leaf_config).encode("utf-8")).hexdigest()
-                leaf_config['leaf_hash'] = leaf_hash
-                del leaf_config["track_hash"]
+                # Create leaf configuration:
+                leaf_config = dbh.create_leaf_config(leaf_name="runtastic_metadata",
+                                                     track_hash=hash_str,
+                                                     columns=obj_definition)
 
                 # Write the second leaf:
-                r = dbh.write_leaf(directory=leaf_config.get("name"),
-                                   track_hash=hash_str,
-                                   leaf_hash=leaf_hash,
+                r = dbh.write_leaf(track_hash=hash_str,
                                    leaf_config=leaf_config,
                                    leaf=df_metadata,
                                    leaf_type="DataFrame"
                                    )
                 if r is True:
                     print("Third leaf written")
+                    del df_metadata

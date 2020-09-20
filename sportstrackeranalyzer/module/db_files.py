@@ -228,19 +228,27 @@ class FileDataBase(object):
         :param track:
         :return:
         """
+        # Open first the track/branch database
         self._open_tiny_db()
-        print("sss")
+
+        # Start the write/update process:
         if db_operation == "new" and track_hash is not None and track is not None:
+            # Look first for the existing hash:
             find_hash = self.db.get(self.user["track_hash"] == track_hash)
+
+            # Insert a new track if the hash does not exists yet:
             if find_hash is None:
                 self.db.insert(track)
             else:
-                print("No new entry possible")
+                print(f"No new entry possible. A track hash {track_hash} exists already in DB")
+
         elif db_operation == "update" and track_hash is not None and track is not None:
-            #identify first
+            # Look first for the existing hash:
             find_hash = self.db.get(self.user["track_hash"] == track_hash)
+
             if find_hash is None:
-                # This if conditions behavies like the "new" option
+                # This if conditions behaves like the "new" option and
+                # insert the track to the database:
                 self.db.insert(track)
             elif find_hash is not None:
                 # Update dictionary with new track information:
@@ -254,7 +262,12 @@ class FileDataBase(object):
 
         else:
             print("You are trying to handling an unknown database operation!")
+
+        # Close database:
         self._close_tiny_db()
+
+        # If you make to hear, return True
+        return True
 
     def read_branch(self, key=None, attribute=None):
         self._open_tiny_db()
@@ -266,9 +279,7 @@ class FileDataBase(object):
     #  - metadata to tracks are like leaves which belong to branch
 
     def write_leaf(self,
-                   directory=None,
                    track_hash=None,
-                   leaf_hash=None,
                    leaf_config=None,
                    leaf=None,
                    leaf_type=None
@@ -277,35 +288,49 @@ class FileDataBase(object):
         Writing a leaf consist of two operations:
         1) Write the leaf
         2) Adjust the track/branch record
-        :param directory:
+
         :param track_hash:
-        :param leaf_hash:
         :param leaf_config:
         :param leaf:
         :param leaf_type:
         :return:
         """
+        # leaf hash:
+        leaf_hash = leaf_config.get("leaf_hash")
 
-        if os.path.exists(os.path.join(self._db_path, directory)) is False:
-            os.makedirs(self._db_path, directory)
+        # Prepare the file based path for storage:
+        storage_path = os.path.join(self._db_path, leaf_config.get("name"))
 
+        # If storage directory not exists, create it:
+        if storage_path is False:
+            os.makedirs(storage_path)
+
+        # Open the branch/track database:
         self._open_tiny_db()
 
-        # Get the according branch/track from the tinyDB
+        # Get the according branch/track from the database:
         find_hash = self.db.get(self.user["track_hash"] == track_hash)
         if find_hash is None:
+            # If hash is not found, return False
             return False
+
+        # Continue with leaf writing:
         find_hash_id = find_hash.doc_id
 
         # We start to write/update according to the chosen method:
         if leaf_type == "DataFrame":
             # Write the leaf to disk:
-            leaf.to_csv(path_or_buf=os.path.join(self._db_path, directory, f"{leaf_hash}.csv"),
-                        index=False,
-                        #compression="gzip",
-                        )
+            try:
+                leaf_storage = os.path.join(storage_path, f"{leaf_hash}.csv")
+                leaf.to_csv(path_or_buf=leaf_storage,
+                            index=False,
+                            #compression="gzip",
+                            )
+            except:
+                print("Something went wrong to write the Pandas DataFrame to disk")
+                return False
 
-            # Update the leaf in the track database
+            # Update the leaf in the track/branch database
             if 'leaf' not in find_hash:
                 db_entry = {}
             else:
@@ -314,8 +339,10 @@ class FileDataBase(object):
             db_entry[leaf_config['name']] = leaf_config
             self.db.update({'leaf': db_entry}, doc_ids=[find_hash_id])
 
-
+        # Close the database:
         self._close_tiny_db()
+
+        # If you make it to here, return true
         return True
 
     def read_leaf(self,

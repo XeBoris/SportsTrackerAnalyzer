@@ -28,6 +28,8 @@ def main():
     parser.add_argument('--key', dest='key', type=str)
     parser.add_argument('--value', dest='value', type=str)
     parser.add_argument('--date', dest='date', type=str)
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true')
+
 
     parser.add_argument('--track-source', dest='track_source', type=str) #runtastic, strava,...
     parser.add_argument('--source-type', dest='source_type', type=str) #db-dump, gps, online
@@ -75,6 +77,7 @@ def main():
     elif args._[0] == "addTracks":
         track_source = args.track_source
         source_type = args.source_type
+        overwrite = args.overwrite
 
         if track_source is None or source_type is None:
             print("You did not specify source-type or track-source")
@@ -95,9 +98,9 @@ def main():
                           path=args.path)
 
             p = rt.get_session_Ids()
-            print(p)
 
-            rt.import_runtastic_sessions()
+
+            rt.import_runtastic_sessions(overwrite=overwrite)
     return 0
 
 
