@@ -366,7 +366,7 @@ class Runtastic():
                 df_sel = df[df.columns & obj_gps_defintion]
 
                 # Create leaf configuration:
-                leaf_config = dbh.create_leaf_config(leaf_name="distances",
+                leaf_config = dbh.create_leaf_config(leaf_name="runtastic_distances",
                                                      track_hash=hash_str,
                                                      columns=obj_gps_defintion)
 

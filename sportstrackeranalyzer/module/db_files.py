@@ -302,7 +302,7 @@ class FileDataBase(object):
         storage_path = os.path.join(self._db_path, leaf_config.get("name"))
 
         # If storage directory not exists, create it:
-        if storage_path is False:
+        if os.path.exists(storage_path) is False:
             os.makedirs(storage_path)
 
         # Open the branch/track database:
@@ -369,3 +369,24 @@ class FileDataBase(object):
 
         return df
 
+    def delete_leaf(self,
+                    directory=None,
+                    track_hash=None,
+                    leaf_hash=None):
+
+        self._open_tiny_db()
+
+        # create the data path:
+        data_path = os.path.join(self._db_path, directory, f"{leaf_hash}.csv")
+
+        # Get the according branch/track from the database:
+        find_hash = self.db.get(self.user["track_hash"] == track_hash)
+        if find_hash is None:
+            # If hash is not found, return False
+            return False
+
+        # Update track by removing the leaf (decouple from database)
+
+        # Remove leaf on disk
+
+        self._close_tiny_db()

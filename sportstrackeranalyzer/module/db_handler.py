@@ -114,6 +114,15 @@ class DataBaseHandler(FileDataBase):
                                             leaf_hash=leaf_hash,
                                             leaf_type=leaf_type)
 
+    def delete_leaf(self,
+                    directory=None,
+                    tracK_hash=None,
+                    leaf_hash=None,
+                    ):
+
+        return self._handler_type.delete_leaf(directory=directory,
+                                              tracK_hash=track_hash,
+                                              leaf_hash=leaf_hash)
 
     # Gets:
     def get_database_exists(self):
