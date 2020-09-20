@@ -370,14 +370,14 @@ class FileDataBase(object):
         return df
 
     def delete_leaf(self,
-                    directory=None,
+                    leaf_name=None,
                     track_hash=None,
                     leaf_hash=None):
 
         self._open_tiny_db()
 
         # create the data path:
-        data_path = os.path.join(self._db_path, directory, f"{leaf_hash}.csv")
+        data_path = os.path.join(self._db_path, leaf_name, f"{leaf_hash}.csv")
 
         # Get the according branch/track from the database:
         find_hash = self.db.get(self.user["track_hash"] == track_hash)
