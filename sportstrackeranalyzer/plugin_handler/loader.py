@@ -86,9 +86,9 @@ class PluginLoader():
                                                   track_hash=self.track_hash,
                                                   columns=obj_definition)
         print(leaf_config_final)
-        # Write the second leaf:
-        # r = dbh.write_leaf(track_hash=hash_str,
-        #                    leaf_config=leaf_config,
-        #                    leaf=df_metadata,
-        #                    leaf_type="DataFrame"
-        #                    )
+
+        r = self.dbh.write_leaf(track_hash=self.track_hash,
+                           leaf_config=leaf_config_final,
+                           leaf=df_result,
+                           leaf_type="DataFrame"
+                           )
