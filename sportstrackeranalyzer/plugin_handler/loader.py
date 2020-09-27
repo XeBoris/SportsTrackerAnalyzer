@@ -53,22 +53,29 @@ class PluginLoader():
         if check_if_in_list is False:
             # return 1: There was a problem with pre-existing leaves
             return 1
-        print("proces")
-        print(self.existing_leaves)
-        i_leaf_name = self.existing_leaves.get("gps").get("name")
-        i_leaf_hash = self.existing_leaves.get("gps").get("leaf_hash")
-        print(i_leaf_name, i_leaf_hash)
-        # if so, we can grab the data leaves and start to process them
-        df_i = self.dbh.read_leaf(directory=i_leaf_name,
-                              leaf_hash=i_leaf_hash,
-                              leaf_type="DataFrame")
-        print(df_i.head(5))
 
-        # df0 = df[df["track_hash"] == self.track_hash]
-        # df_leafs = pd.json_normalize(df0["leaf"])
-        #
-        # result = df_leafs.to_json(orient="records")
-        # result = json.loads(result)
-        #
-        # leaf_name = result[0][f"{leaf_name}.name"]
-        # leaf_hash = result[0][f"{leaf_name}.leaf_hash"]
+
+        # Extract leaves from database:
+        leaves_db = {}
+        for i_leaf in required_leaves:
+
+            i_leaf_name = self.existing_leaves.get(i_leaf).get("name")
+            i_leaf_hash = self.existing_leaves.get(i_leaf).get("leaf_hash")
+            print(i_leaf_name, i_leaf_hash)
+
+            df_i = self.dbh.read_leaf(directory=i_leaf_name,
+                                      leaf_hash=i_leaf_hash,
+                                      leaf_type="DataFrame")
+            leaves_db[i_leaf] = df_i
+
+        process_obj.set_plugin_data(leaves_db)
+
+        # Run the processor:
+        process_obj.run()
+
+        # Extract the processed data:
+        proc_success = process_obj.get_processing_success()
+        df_result = process_obj.get_result()
+
+        print(proc_success)
+        print(df_result)
