@@ -404,8 +404,6 @@ class Runtastic():
                     print("Third leaf written")
                     del df_metadata
 
-                dd = dbh.read_branch("track_hash", hash_str)
-                print(dd)
-                #dbh.delete_leaf(leaf_name="distances",
-                #                track_hash=hash_str,
-                #                leaf_hash=)
+
+                # dbh.delete_leaf(leaf_name="distances",
+                #                 track_hash=hash_str)

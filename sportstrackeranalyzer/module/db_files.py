@@ -372,21 +372,68 @@ class FileDataBase(object):
     def delete_leaf(self,
                     leaf_name=None,
                     track_hash=None,
-                    leaf_hash=None):
+                    ):
 
         self._open_tiny_db()
-
-        # create the data path:
-        data_path = os.path.join(self._db_path, leaf_name, f"{leaf_hash}.csv")
 
         # Get the according branch/track from the database:
         find_hash = self.db.get(self.user["track_hash"] == track_hash)
         if find_hash is None:
             # If hash is not found, return False
             return False
+        find_hash_id = find_hash.doc_id
 
         # Update track by removing the leaf (decouple from database)
 
         # Remove leaf on disk
 
+        if find_hash.get("leaf") is None:
+            return False
+        if leaf_name not in find_hash.get("leaf"):
+            return False
+
+        leaf_hash = find_hash.get("leaf").get(leaf_name).get("leaf_hash")
+        leaf_to_modify = find_hash.get("leaf")
+
+        # create the data path and remove it later:
+        data_path = os.path.join(self._db_path, leaf_name, f"{leaf_hash}.csv")
+
+        del leaf_to_modify[leaf_name]
+
+        try:
+            self.db.update({'leaf': leaf_to_modify}, doc_ids=[find_hash_id])
+        except:
+            print("Database entry could not get updated - skip")
+            return False
+
+        try:
+            os.remove(data_path)
+        except:
+            print(f"Removing file {data_path} failed")
+            return False
+
         self._close_tiny_db()
+
+        # If you make it to hear, return True
+        return True
+
+    # High level functions for sort cuts. You are only allowed to use functions within this class!
+
+    def get_all_leaves_for_track(self, track_hash=None):
+        """
+
+        :param track_hash:
+        :return:
+        """
+        try:
+            branch = self.read_branch(key="track_hash",
+                                  attribute=track_hash)
+
+            branch_leaves = branch[0]
+        except:
+            return []
+
+        try:
+            return branch_leaves.get("leaf")
+        except:
+            return []

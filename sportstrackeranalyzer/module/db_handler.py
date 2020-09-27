@@ -116,13 +116,11 @@ class DataBaseHandler(FileDataBase):
 
     def delete_leaf(self,
                     leaf_name=None,
-                    track_hash=None,
-                    leaf_hash=None,
+                    track_hash=None
                     ):
 
         return self._handler_type.delete_leaf(leaf_name=leaf_name,
-                                              tracK_hash=track_hash,
-                                              leaf_hash=leaf_hash)
+                                              track_hash=track_hash)
 
     # Gets:
     def get_database_exists(self):
@@ -131,3 +129,6 @@ class DataBaseHandler(FileDataBase):
     def get_database_tables_exists(self):
         return self._handler_type.get_database_tables_exists()
 
+    # High level operations:
+    def get_all_leaves_for_track(self, track_hash=None):
+        return self._handler_type.get_all_leaves_for_track(track_hash=track_hash)
