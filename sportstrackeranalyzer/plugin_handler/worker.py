@@ -25,6 +25,7 @@ print(user_name, user_hash)
 
 user_tracks = dbh.read_branch(key="user_hash", attribute=user_hash)
 
+overwrite = False
 
 pl = PluginLoader()
 pl.set_database_handler(dbh=dbh)
@@ -49,6 +50,12 @@ for i_track in user_tracks:
 
     pl.set_existing_leaves_for_track(existing_leaves=existing_leaves)
     pl.set_track_by_hash(track_hash=i_track_hash)
+    pl.allow_overwrite()
 
     for i_plugin in all_available_plugins:
-        pl.process(i_plugin)
+        # error codes:
+        # 2: leaf exits but no overwriting is allowed
+        # 1: leaf can not be processed due to missing processed leaves or raw data
+        # 0: OK
+        # -1: Something went wrong
+        error_code = pl.process(i_plugin)
