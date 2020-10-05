@@ -15,6 +15,7 @@ from .module.simple_actions import mod_user
 from .module.simple_actions import collect_cli_user_info
 
 from .module.runtastic import Runtastic
+from .module.strava import Strava
 
 shelve_temp = os.path.join(os.path.expanduser("~"), ".sta")
 
@@ -101,6 +102,16 @@ def main():
 
 
             rt.import_runtastic_sessions(overwrite=overwrite)
+
+        elif track_source == "strava" and source_type == "gps":
+
+            if args.path is None:
+                print("To import Strava gps files")
+
+            st = Strava()
+            st.set_gps_path(gps_path=args.path)
+            st.load_gps()
+
     return 0
 
 
