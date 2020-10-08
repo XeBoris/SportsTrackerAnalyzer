@@ -16,3 +16,4 @@ gmplot==1.4.1
 mplleaflet==0.0.5
 matplotlib==3.3.2
 folium==0.11.0
+gpxpy==1.4.2

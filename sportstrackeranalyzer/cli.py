@@ -110,7 +110,8 @@ def main():
 
             st = Strava()
             st.set_gps_path(gps_path=args.path)
-            st.load_gps()
+            st.import_strava_gpx()
+
 
     return 0
 
