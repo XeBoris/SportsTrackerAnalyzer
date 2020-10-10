@@ -1,12 +1,26 @@
-
+import json
 
 class Blueprint():
     """
-    This class allows us to handle common blueprints for all kind of input files
+    This class allows us to
     """
 
     def __init__(self):
         pass
+
+    def ManualSportMapper(self):
+        allowed_activities = ["cycling", "mountainbike", "hiking", "walking"]
+
+        print("Activities are:")
+        for i in allowed_activities:
+            print(" - ", i)
+        print()
+
+        activity = ""
+        while activity not in allowed_activities:
+            activity = input("State your activity: ")
+        print(f"Selected: {activity}")
+        return activity
 
     def RuntasticSportsMapping(self, nb):
         """
@@ -118,5 +132,25 @@ class Blueprint():
             blueprint[ts]["distance"] = i_obj["distance"]
             blueprint[ts]["elevation_gain"] = i_obj["elevation_gain"]
             blueprint[ts]["elevation_loss"] = i_obj["elevation_loss"]
+
+        return blueprint
+
+    def StravaSession(self):
+        """
+
+        :param obj:
+        :return:
+        """
+        blueprint = {}
+        blueprint["start_time"] = None
+        blueprint["end_time"] = None
+        blueprint["created_at"] = None
+        blueprint["updated_at"] = None
+        blueprint["title"] = None
+        blueprint["notes"] = None
+        blueprint["start_time_timezone_offset"] = None
+        blueprint["end_time_timezone_offset"] = None
+        blueprint["sports_type"] = None
+        blueprint["source"] = "StravaGps"
 
         return blueprint
