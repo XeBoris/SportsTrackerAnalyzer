@@ -22,7 +22,7 @@ class Blueprint():
         print(f"Selected: {activity}")
         return activity
 
-    def RuntasticSportsMapping(self, nb):
+    def _runtastic_sports_mapper(self, nb):
         """
         Hand over a number, return a sports type:
         :param nb:
@@ -42,7 +42,7 @@ class Blueprint():
         }
         return sports_types[str(nb)]
 
-    def RuntasticSession(self, json_info):
+    def runtastic_session(self, json_info):
         """
 
         :param obj:
@@ -57,12 +57,12 @@ class Blueprint():
         blueprint["notes"] = json_info.get("notes")
         blueprint["start_time_timezone_offset"] = json_info.get("start_time_timezone_offset")
         blueprint["end_time_timezone_offset"] = json_info.get("end_time_timezone_offset")
-        blueprint["sports_type"] = self.RuntasticSportsMapping(json_info.get("sport_type_id"))
+        blueprint["sports_type"] = self._runtastic_sports_mapper(json_info.get("sport_type_id"))
         blueprint["source"] = "RTDB"  # Stands for Runtastic Database, no versioning since not observed
 
         return blueprint
 
-    def RuntasticMetadata(self, json_info):
+    def runtastic_metadata(self, json_info):
         """
         Aim: Extract meta data information about the area and weather which
         is included in the database dump
@@ -95,7 +95,7 @@ class Blueprint():
 
         return blueprint
 
-    def RuntasticSessionLonLat(self, json_info):
+    def runtastic_session_lonlat(self, json_info):
 
         blueprint = {}
         # print(len(json_info))
@@ -118,7 +118,7 @@ class Blueprint():
 
         return blueprint
 
-    def RuntasticSessionElevation(self, json_info):
+    def runtastic_session_elevation(self, json_info):
         blueprint = {}
         # print(len(json_info))
 
@@ -135,7 +135,7 @@ class Blueprint():
 
         return blueprint
 
-    def StravaSession(self):
+    def strava_session(self):
         """
 
         :param obj:

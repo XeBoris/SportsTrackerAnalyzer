@@ -6,6 +6,7 @@ import gpxpy.gpx
 import datetime
 import hashlib
 import pandas as pd
+import numpy as np
 
 from .db_handler import DataBaseHandler
 from .shelve_handler import ShelveHandler
@@ -31,6 +32,21 @@ class Strava():
         self._init_database_handler()
         self._empty_gpx_info()
 
+    def _get_all_sport_sessions(self):
+        """
+        Read all your sport sessions from the available database dump.
+        Assume that the <UUID>.json file structure holds for unique
+        files. 1 UUID == 1 file == 1 sports activity
+        """
+
+        session_paths = []
+        for (dirpath, dirnames, filenames) in os.walk(self.gps_path):
+            session_paths.extend(filenames)
+            break
+
+        session_paths = [i for i in session_paths if i.find(".gpx") > 0]
+        return session_paths
+
     def _init_database_handler(self):
         # init a database handler here:
         self.db_temp = ShelveHandler()
@@ -50,19 +66,31 @@ class Strava():
         self.obj_gps["latitude"] = []
         self.obj_gps["altitude"] = []
 
+    def set_gps_file(self, gps_file):
+        self.gps_file = gps_file
+
     def set_gps_path(self, gps_path):
         self.gps_path = gps_path
+
+    def import_strava_gpx_from_path(self):
+        print(self.gps_path)
+
+        all_gpx = self._get_all_sport_sessions()
+        for i_gpx in all_gpx:
+            gps_file = os.path.join(self.gps_path, i_gpx)
+            self.set_gps_file(gps_file)
+            self.import_strava_gpx()
 
     def import_strava_gpx(self):
         #Import a single gpx file here:
         self.load_gps()
 
-        beg_branch = int(min(self.df["timestamp"]).replace(tzinfo=datetime.timezone.utc).timestamp()*1000)
-        end_branch = int(max(self.df["timestamp"]).replace(tzinfo=datetime.timezone.utc).timestamp()*1000)
+        beg_branch = int(min(self.df["timestamp"])*1000)
+        end_branch = int(max(self.df["timestamp"])*1000)
 
         #Load the gpx file and create the branch/track info
 
-        blueprint_session = self.bp.StravaSession()
+        blueprint_session = self.bp.strava_session()
 
         blueprint_session["start_time"] = beg_branch
         blueprint_session["end_time"] = end_branch
@@ -70,14 +98,21 @@ class Strava():
         blueprint_session["updated_at"] = end_branch
         blueprint_session["title"] = self.track_name
         blueprint_session["notes"] = self.track_name
-        blueprint_session["start_time_timezone_offset"] = 7200000
-        blueprint_session["end_time_timezone_offset"] = 7200000
+        blueprint_session["start_time_timezone_offset"] = None
+        blueprint_session["end_time_timezone_offset"] = None
         blueprint_session["sports_type"] = None
-        blueprint_session["source"] = "Strave-GPS"
+        blueprint_session["source"] = "StravaGPS"
 
         if blueprint_session["sports_type"] is None:
             activity = self.bp.manual_sport_mapper()
             blueprint_session["sports_type"] = activity
+
+        if blueprint_session["start_time_timezone_offset"] is None:
+            print("Add time offset between UTC and timezone when tour was made:")
+            print("Allowed only in NANOSECONDs")
+            offset = input("Offset [ns]: ")
+            blueprint_session["start_time_timezone_offset"] = offset
+            blueprint_session["end_time_timezone_offset"] = offset
 
         # We add a track_hash to each track to make it unique:
         hash_str = f"{blueprint_session.get('start_time')}{blueprint_session.get('end_time')}"
@@ -121,7 +156,7 @@ class Strava():
         - Takes track name
         :return:
         """
-        self._read_json(self.gps_path)
+        self._read_json(self.gps_file)
 
         for track in self.gpx.tracks:
             self.track_name = track.name
@@ -134,7 +169,8 @@ class Strava():
                     self.obj_gps["timestamp"].append(point.time)
 
         self.df = pd.DataFrame(self.obj_gps)
-        self.df["timestamp"] = pd.to_datetime(self.df["timestamp"])
+        self.df["timestamp"] = pd.to_datetime(self.df["timestamp"]) #Get rid of +Z
+        self.df["timestamp"] = pd.DatetimeIndex(self.df["timestamp"]).astype(np.int64)/1e9 #Convert it to seconds
 
     def _read_json(self, fjson):
         """
@@ -142,7 +178,7 @@ class Strava():
         :param fjson:
         :return:
         """
-        gpx_file = open(self.gps_path, 'r')
-        tree = ET.parse(self.gps_path)
+        gpx_file = open(self.gps_file, 'r')
+        tree = ET.parse(self.gps_file)
         root = tree.getroot()
         self.gpx = gpxpy.parse(gpx_file)

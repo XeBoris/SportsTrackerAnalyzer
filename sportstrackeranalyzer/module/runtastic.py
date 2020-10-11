@@ -91,7 +91,7 @@ class Runtastic():
         json_info = self._read_json(json_path_info)
 
         # We will receive meta data from RunTastic First:
-        json_info_meta = self.bp.RuntasticMetadata(json_info)
+        json_info_meta = self.bp.runtastic_metadata(json_info)
 
         # We extract timestamps and timestamp names
         dtime = datetime.datetime.utcfromtimestamp(json_info["start_time"] / 1000).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -101,7 +101,7 @@ class Runtastic():
         # print(json_info)
 
         # We will receive the main Runtastic information about the track
-        json_info = self.bp.RuntasticSession(json_info)
+        json_info = self.bp.runtastic_session(json_info)
 
         # We will receive the track (gpx) related information about the track
         # This needs two steps:
@@ -110,13 +110,13 @@ class Runtastic():
         # - step 1)
         if os.path.exists(json_path_gps):
             json_gps = self._read_json(json_path_gps)
-            data_gps = self.bp.RuntasticSessionLonLat(json_gps)
+            data_gps = self.bp.runtastic_session_lonlat(json_gps)
         else:
             data_gps = {}
 
         if os.path.exists(json_path_elv):
             json_ele = self._read_json(json_path_elv)
-            data_ele = self.bp.RuntasticSessionElevation(json_ele)
+            data_ele = self.bp.runtastic_session_elevation(json_ele)
         else:
             data_ele = {}
         # - step 2:

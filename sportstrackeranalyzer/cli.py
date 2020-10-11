@@ -104,13 +104,18 @@ def main():
             rt.import_runtastic_sessions(overwrite=overwrite)
 
         elif track_source == "strava" and source_type == "gps":
+            st = Strava()
 
             if args.path is None:
                 print("To import Strava gps files")
 
-            st = Strava()
-            st.set_gps_path(gps_path=args.path)
-            st.import_strava_gpx()
+            #test if args.path is file or path and determine what to do:
+            if os.path.isfile(args.path):
+                st.set_gps_file(gps_file=args.path)
+                st.import_strava_gpx()
+            elif os.path.isdir(args.path):
+                st.set_gps_path(gps_path=args.path)
+                st.import_strava_gpx_from_path()
 
 
     return 0
