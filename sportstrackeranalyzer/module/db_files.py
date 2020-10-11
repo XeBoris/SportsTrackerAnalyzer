@@ -275,6 +275,12 @@ class FileDataBase(object):
         self._close_tiny_db()
         return db_entry
 
+    def delete_branch(self, key=None, attribute=None):
+        self._open_tiny_db()
+        db_entry = self.db.search(self.user[key] == attribute)
+        self._close_tiny_db()
+        return db_entry
+
     #This part handles write/read operation on metadata
     #  - metadata to tracks are like leaves which belong to branch
 

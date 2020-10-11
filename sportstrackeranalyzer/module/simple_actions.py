@@ -136,3 +136,18 @@ def mod_user(key, value, date):
     dbh.set_db_name(db_name=db_dict["db_name"])
 
     dbh.mod_user_by_hash(db_dict["db_hash"], key, value, date)
+
+def find_tracks():
+
+    db_temp = ShelveHandler()
+    db_dict = db_temp.read_shelve_by_keys(["db_name",
+                                           "db_type",
+                                           "db_path",
+                                           "db_user",
+                                           "db_hash"])
+
+    dbh = DataBaseHandler(db_type=db_dict["db_type"])
+    dbh.set_db_path(db_path=db_dict["db_path"])
+    dbh.set_db_name(db_name=db_dict["db_name"])
+
+    #dbh.read_branch(key="start_time")

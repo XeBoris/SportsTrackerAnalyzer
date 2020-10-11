@@ -58,6 +58,9 @@ class DataBaseHandler(FileDataBase):
     def read_branch(self, key=None, attribute=None):
         return self._handler_type.read_branch(key=key, attribute=attribute)
 
+    def delete_branch(self, key=None, attribute=None):
+        return self._handler_type.delete_branch(key=key, attribute=attribute)
+
     #This part handles write/read operation on metadata
     #  - metadata to tracks are like leaves which belong to branch
 

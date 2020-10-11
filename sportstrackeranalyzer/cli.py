@@ -117,6 +117,13 @@ def main():
                 st.set_gps_path(gps_path=args.path)
                 st.import_strava_gpx_from_path()
 
+    elif args._[0] == "FindTracks":
+        track_source = args.track_source
+        source_type = args.source_type
+
+        print(track_source, source_type)
+
+
 
     return 0
 

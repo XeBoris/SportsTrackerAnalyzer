@@ -78,8 +78,10 @@ class Strava():
         all_gpx = self._get_all_sport_sessions()
         for i_gpx in all_gpx:
             gps_file = os.path.join(self.gps_path, i_gpx)
+            print(gps_file)
             self.set_gps_file(gps_file)
             self.import_strava_gpx()
+            self._empty_gpx_info()
 
     def import_strava_gpx(self):
         #Import a single gpx file here:
@@ -149,6 +151,7 @@ class Strava():
         if r is True:
             print("First leaf written")
             del df_sel
+            del self.df
 
     def load_gps(self):
         """
