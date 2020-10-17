@@ -275,6 +275,13 @@ class FileDataBase(object):
         self._close_tiny_db()
         return db_entry
 
+    def search_branch(self, key=None, attribute=None, how=None):
+        self._open_tiny_db()
+        if isinstance(attribute, list) and how == "between":
+            db_entry = self.db.search( (self.user[key] >= attribute[0]) & (self.user[key] <= attribute[1]))
+        self._close_tiny_db()
+        return db_entry
+
     def delete_branch(self, key=None, attribute=None):
         self._open_tiny_db()
         db_entry = self.db.search(self.user[key] == attribute)

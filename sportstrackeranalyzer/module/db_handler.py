@@ -58,6 +58,9 @@ class DataBaseHandler(FileDataBase):
     def read_branch(self, key=None, attribute=None):
         return self._handler_type.read_branch(key=key, attribute=attribute)
 
+    def search_branch(self, key=None, attribute=None, how=None):
+        return self._handler_type.search_branch(key=key, attribute=attribute, how=how)
+
     def delete_branch(self, key=None, attribute=None):
         return self._handler_type.delete_branch(key=key, attribute=attribute)
 

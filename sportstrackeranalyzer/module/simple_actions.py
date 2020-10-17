@@ -137,7 +137,36 @@ def mod_user(key, value, date):
 
     dbh.mod_user_by_hash(db_dict["db_hash"], key, value, date)
 
-def find_tracks():
+def find_tracks(track_source, source_type, date):
+    """
+
+    :return:
+    """
+
+    def evaluate_date(data):
+        # prepare the date:
+        if "-" in date:
+            date_beg = date.split("-")[0]
+            date_end = date.split("-")[1]
+        elif "-" not in date and "T" not in date:
+            date_beg = datetime.datetime.strptime(date, '%Y%m%d')
+            date_end = date_beg + datetime.timedelta(hours=24)
+
+        if "T" in date_beg:
+            date_beg = datetime.datetime.strptime(date_beg, '%Y%m%dT%H%M')
+        else:
+            date_beg = datetime.datetime.strptime(date_beg, '%Y%m%d')
+        if "T" in date_end:
+            date_end = datetime.datetime.strptime(date_end, '%Y%m%dT%H%M')
+        else:
+            date_end = datetime.datetime.strptime(date_end, '%Y%m%d')
+
+        date_beg = date_beg.timestamp() * 1000
+        date_end = date_end.timestamp() * 1000
+        return date_beg, date_end
+
+    if date is not None:
+        date_beg, date_end = evaluate_date(date)
 
     db_temp = ShelveHandler()
     db_dict = db_temp.read_shelve_by_keys(["db_name",
@@ -150,4 +179,42 @@ def find_tracks():
     dbh.set_db_path(db_path=db_dict["db_path"])
     dbh.set_db_name(db_name=db_dict["db_name"])
 
-    #dbh.read_branch(key="start_time")
+
+    if date is not None:
+        branches = dbh.search_branch(key="start_time", attribute=[date_beg, date_end], how="between")
+
+    for i_branch in branches:
+        tr_offset_beg = int(i_branch.get("start_time_timezone_offset"))/1000
+        tr_offset_end = int(i_branch.get("end_time_timezone_offset"))/1000
+        tr_beg = datetime.datetime.utcfromtimestamp(i_branch.get("start_time")/1000+tr_offset_beg)
+        tr_end = datetime.datetime.utcfromtimestamp(i_branch.get("end_time")/1000+tr_offset_end)
+        tr_hash = i_branch.get("track_hash")
+        tr_title = i_branch.get("title")
+
+        cmd = f"Track {tr_hash}: {tr_beg} o {tr_end} | {tr_title}"
+        print(cmd)
+
+    #all_leaves = branch.get("leaf")
+    #print(all_leaves)
+
+def remove_tracks(track_hash):
+
+    db_temp = ShelveHandler()
+    db_dict = db_temp.read_shelve_by_keys(["db_name",
+                                           "db_type",
+                                           "db_path",
+                                           "db_user",
+                                           "db_hash"])
+
+    dbh = DataBaseHandler(db_type=db_dict["db_type"])
+    dbh.set_db_path(db_path=db_dict["db_path"])
+    dbh.set_db_name(db_name=db_dict["db_name"])
+
+    branch = dbh.read_branch(key="track_hash", attribute=track_hash)[0]
+
+    print(branch)
+    all_leaves = branch.get("leaf")
+    for i_leaf_name, i_leaf in all_leaves.items():
+        i_leaf_path = os.path.join(i_leaf_name, i_leaf.get("leaf_hash"))
+
+        print(i_leaf_path)
