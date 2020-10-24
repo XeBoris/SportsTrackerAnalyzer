@@ -258,7 +258,7 @@ c.NotebookApp.base_project_url = '/home/koenig/Projects/project_SportTracker/act
 #c.NotebookApp.nbserver_extensions = {}
 
 ## The directory to use for notebooks and kernels.
-#c.NotebookApp.notebook_dir = ''
+c.NotebookApp.notebook_dir = '/home/koenig/Projects/project_SportTracker/actual_stack/SportsTrackerAnalyzer/'
 
 ## Whether to open in a browser after starting. The specific browser used is
 #  platform dependent and determined by the python standard library `webbrowser`

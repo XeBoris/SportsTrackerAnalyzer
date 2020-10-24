@@ -1,6 +1,7 @@
 import sys
 import os
 import datetime
+from shutil import copyfile, move
 import shelve
 
 from .db_handler import DataBaseHandler
@@ -136,3 +137,223 @@ def mod_user(key, value, date):
     dbh.set_db_name(db_name=db_dict["db_name"])
 
     dbh.mod_user_by_hash(db_dict["db_hash"], key, value, date)
+
+def find_tracks(track_source, source_type, date):
+    """
+
+    :return:
+    """
+
+    def evaluate_date(data):
+        # prepare the date:
+        if "-" in date:
+            date_beg = date.split("-")[0]
+            date_end = date.split("-")[1]
+        elif "-" not in date and "T" not in date:
+            date_beg = datetime.datetime.strptime(date, '%Y%m%d')
+            date_end = date_beg + datetime.timedelta(hours=24)
+
+        if "T" in date_beg:
+            date_beg = datetime.datetime.strptime(date_beg, '%Y%m%dT%H%M')
+        else:
+            date_beg = datetime.datetime.strptime(date_beg, '%Y%m%d')
+        if "T" in date_end:
+            date_end = datetime.datetime.strptime(date_end, '%Y%m%dT%H%M')
+        else:
+            date_end = datetime.datetime.strptime(date_end, '%Y%m%d')
+
+        date_beg = date_beg.timestamp() * 1000
+        date_end = date_end.timestamp() * 1000
+        return date_beg, date_end
+
+    if date is not None:
+        date_beg, date_end = evaluate_date(date)
+
+    db_temp = ShelveHandler()
+    db_dict = db_temp.read_shelve_by_keys(["db_name",
+                                           "db_type",
+                                           "db_path",
+                                           "db_user",
+                                           "db_hash"])
+
+    dbh = DataBaseHandler(db_type=db_dict["db_type"])
+    dbh.set_db_path(db_path=db_dict["db_path"])
+    dbh.set_db_name(db_name=db_dict["db_name"])
+
+
+    if date is not None:
+        branches = dbh.search_branch(key="start_time", attribute=[date_beg, date_end], how="between")
+
+    for i_branch in branches:
+        tr_offset_beg = int(i_branch.get("start_time_timezone_offset"))/1000
+        tr_offset_end = int(i_branch.get("end_time_timezone_offset"))/1000
+        tr_beg = datetime.datetime.utcfromtimestamp(i_branch.get("start_time")/1000+tr_offset_beg)
+        tr_end = datetime.datetime.utcfromtimestamp(i_branch.get("end_time")/1000+tr_offset_end)
+        tr_hash = i_branch.get("track_hash")
+        tr_title = i_branch.get("title")
+        tr_leaves = i_branch.get("leaf")
+
+        cmd = f"Track {tr_hash}: {tr_beg} o {tr_end} | {tr_title}"
+        print(cmd)
+
+        if tr_leaves is not None:
+            for key, i_leaf in tr_leaves.items():
+                cmd1 = f"  - Leaf {key} - {i_leaf.get('leaf_hash')}"
+                print(cmd1)
+        else:
+            print("No leaves!")
+
+
+def remove_tracks(track_hash):
+
+    def list_files(path):
+        f = []
+        for (dirpath, dirnames, filenames) in os.walk(path):
+            f.extend(filenames)
+            break
+        return f
+
+    def get_leaf(path, leaf_name):
+        all_leaves = list_files(path)
+        all_leaves = [i for i in all_leaves if i.find(".temp") < 0]
+        leaf = [i for i in all_leaves if leaf_name in i]
+        return leaf
+
+    def del_path(path, backup=False):
+
+        if backup is True:
+            path_temp = path + ".temp"
+            copyfile(path, path_temp)
+
+        if os.path.isfile(path) is False:
+            return False
+        try:
+            os.remove(path)
+        except FileNotFoundError as e:
+            return e
+
+        return True
+
+    def restore_file(path):
+        path_temp = path + ".temp"
+        move(path_temp, path)
+
+    db_temp = ShelveHandler()
+    db_dict = db_temp.read_shelve_by_keys(["db_name",
+                                           "db_type",
+                                           "db_path",
+                                           "db_user",
+                                           "db_hash"])
+
+    db_path = db_dict["db_path"]
+
+    dbh = DataBaseHandler(db_type=db_dict["db_type"])
+    dbh.set_db_path(db_path=db_dict["db_path"])
+    dbh.set_db_name(db_name=db_dict["db_name"])
+
+    branch = None
+    try:
+        branch = dbh.read_branch(key="track_hash", attribute=track_hash)[0]
+        print(f"Track hash {track_hash} found in database")
+    except IndexError as e:
+        print(f"Track hash {track_hash} not found in the database")
+        exit()
+
+    print("Start to remove leaves:")
+    track_hash = branch.get("track_hash")
+    all_leaves = branch.get("leaf")
+
+    for i_leaf_name, obj in all_leaves.items():
+        print(f"Leaf names: {i_leaf_name} / {obj.get('leaf_hash')}")
+
+        leaf_hash = obj.get('leaf_hash')
+        del_db_approval = dbh.delete_leaf(leaf_name=i_leaf_name,
+                                          track_hash=track_hash)
+        if del_db_approval is True:
+            print(f"Leaf removed")
+        else:
+            print("Something went wrong while removing the leaf")
+            exit()
+
+    #Re-read the track and remove it under the condition of no leaves are in:
+    branch = dbh.read_branch(key="track_hash", attribute=track_hash)[0]
+    track_hash = branch.get("track_hash")
+    if len(branch.get("leaf")) == 0:
+        del_db_approval = dbh.delete_branch(key="track_hash", attribute=track_hash)
+        if del_db_approval is True:
+            print("Done!")
+
+def remove_leaves(track_hash):
+
+    def list_files(path):
+        f = []
+        for (dirpath, dirnames, filenames) in os.walk(path):
+            f.extend(filenames)
+            break
+        return f
+
+    def get_leaf(path, leaf_name):
+        all_leaves = list_files(path)
+        all_leaves = [i for i in all_leaves if i.find(".temp") < 0]
+        leaf = [i for i in all_leaves if leaf_name in i]
+        return leaf
+
+    def del_path(path, backup=False):
+
+        if backup is True:
+            path_temp = path + ".temp"
+            copyfile(path, path_temp)
+
+        if os.path.isfile(path) is False:
+            return False
+        try:
+            os.remove(path)
+        except FileNotFoundError as e:
+            return e
+
+        return True
+
+    def restore_file(path):
+        path_temp = path + ".temp"
+        move(path_temp, path)
+
+    db_temp = ShelveHandler()
+    db_dict = db_temp.read_shelve_by_keys(["db_name",
+                                           "db_type",
+                                           "db_path",
+                                           "db_user",
+                                           "db_hash"])
+
+    db_path = db_dict["db_path"]
+
+    dbh = DataBaseHandler(db_type=db_dict["db_type"])
+    dbh.set_db_path(db_path=db_dict["db_path"])
+    dbh.set_db_name(db_name=db_dict["db_name"])
+
+    branch = None
+    try:
+        branch = dbh.read_branch(key="track_hash", attribute=track_hash)[0]
+        print(f"Track hash {track_hash} found in database")
+    except IndexError as e:
+        print(f"Track hash {track_hash} not found in the database")
+        exit()
+
+    print("Select a leaf:")
+    track_hash = branch.get("track_hash")
+    all_leaves = branch.get("leaf")
+
+    for i_leaf_name, obj in all_leaves.items():
+        print(f"Leaf names: {i_leaf_name} / {obj.get('leaf_hash')}")
+
+    input_leaf = input("Prompt a leaf name: ")
+    if input_leaf == "c":
+        print("nothing to remove")
+        exit()
+        
+    del_db_approval = dbh.delete_leaf(leaf_name=input_leaf,
+                                      track_hash=track_hash)
+    if del_db_approval is True:
+        print(f"Leaf removed")
+    else:
+        print("Something went wrong while removing the leaf")
+    exit()

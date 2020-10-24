@@ -12,6 +12,9 @@ from .module.simple_actions import load_db
 from .module.simple_actions import add_user
 from .module.simple_actions import set_user
 from .module.simple_actions import mod_user
+from .module.simple_actions import find_tracks
+from .module.simple_actions import remove_tracks
+from .module.simple_actions import remove_leaves
 from .module.simple_actions import collect_cli_user_info
 
 from .module.runtastic import Runtastic
@@ -29,6 +32,7 @@ def main():
     parser.add_argument('--key', dest='key', type=str)
     parser.add_argument('--value', dest='value', type=str)
     parser.add_argument('--date', dest='date', type=str)
+    parser.add_argument('--hash', dest='hash', type=str)
     parser.add_argument('--overwrite', dest='overwrite', action='store_true')
 
 
@@ -117,6 +121,22 @@ def main():
                 st.set_gps_path(gps_path=args.path)
                 st.import_strava_gpx_from_path()
 
+    elif args._[0] == "findTracks":
+        track_source = args.track_source
+        source_type = args.source_type
+        date = args.date
+
+        find_tracks(track_source, source_type, date)
+
+    elif args._[0] == "removeTracks":
+        track_hash = args.hash
+
+        remove_tracks(track_hash)
+
+    elif args._[0] == "removeLeaves":
+        track_hash = args.hash
+
+        remove_leaves(track_hash)
 
     return 0
 
