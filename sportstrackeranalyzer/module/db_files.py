@@ -3,7 +3,9 @@ import uuid
 import json
 import hashlib
 import pandas as pd
-from tinydb import TinyDB, Query
+from tinydb import TinyDB, Query, where
+from shutil import copyfile, move
+from tinydb.operations import delete
 
 class FileDataBase(object):
     """
@@ -284,9 +286,17 @@ class FileDataBase(object):
 
     def delete_branch(self, key=None, attribute=None):
         self._open_tiny_db()
-        db_entry = self.db.search(self.user[key] == attribute)
+        db_entry = self.db.get(self.user[key] == attribute)
+        delbranch = False
+        if db_entry.doc_id is not None:
+            try:
+                self.db.remove(where(key) == attribute)
+                delbranch = True
+            except:
+                print("Branch could not be deleted.")
+
         self._close_tiny_db()
-        return db_entry
+        return delbranch
 
     #This part handles write/read operation on metadata
     #  - metadata to tracks are like leaves which belong to branch
@@ -352,6 +362,16 @@ class FileDataBase(object):
             db_entry[leaf_config['name']] = leaf_config
             self.db.update({'leaf': db_entry}, doc_ids=[find_hash_id])
 
+        elif leaf_type == "ConfigWrite":
+            # Update the leaf in the track/branch database
+            if 'leaf' not in find_hash:
+                db_entry = {}
+            else:
+                db_entry = find_hash.get("leaf")
+
+            db_entry[leaf_config['name']] = leaf_config
+            self.db.update({'leaf': db_entry}, doc_ids=[find_hash_id])
+
         # Close the database:
         self._close_tiny_db()
 
@@ -387,10 +407,34 @@ class FileDataBase(object):
                     track_hash=None,
                     ):
 
+        def list_files(path):
+            f = []
+            for (dirpath, dirnames, filenames) in os.walk(path):
+                f.extend(filenames)
+                break
+            return f
+
+        def del_path(path, backup=False):
+
+            if backup is True:
+                path_temp = path + ".temp"
+                copyfile(path, path_temp)
+
+            if os.path.isfile(path) is False:
+                return False
+            try:
+                os.remove(path)
+            except FileNotFoundError as e:
+                return e
+
+            return True
+
+        print("delete:")
         self._open_tiny_db()
 
         # Get the according branch/track from the database:
         find_hash = self.db.get(self.user["track_hash"] == track_hash)
+        print("h:", find_hash)
         if find_hash is None:
             # If hash is not found, return False
             return False
@@ -399,7 +443,6 @@ class FileDataBase(object):
         # Update track by removing the leaf (decouple from database)
 
         # Remove leaf on disk
-
         if find_hash.get("leaf") is None:
             return False
         if leaf_name not in find_hash.get("leaf"):
@@ -407,23 +450,22 @@ class FileDataBase(object):
 
         leaf_hash = find_hash.get("leaf").get(leaf_name).get("leaf_hash")
         leaf_to_modify = find_hash.get("leaf")
+        print(leaf_hash, leaf_to_modify)
 
-        # create the data path and remove it later:
-        data_path = os.path.join(self._db_path, leaf_name, f"{leaf_hash}.csv")
+        all_leaves = list_files(os.path.join(self._db_path, leaf_name))
+        leaf_file = [i for i in all_leaves if i.find(leaf_hash) >= 0]
+        leaf_file = os.path.join(self._db_path, leaf_name, leaf_file[0])
+        print(leaf_file)
 
-        del leaf_to_modify[leaf_name]
+        del_file_appr = del_path(leaf_file, backup=False)
+        if del_file_appr is True:
 
-        try:
-            self.db.update({'leaf': leaf_to_modify}, doc_ids=[find_hash_id])
-        except:
-            print("Database entry could not get updated - skip")
-            return False
-
-        try:
-            os.remove(data_path)
-        except:
-            print(f"Removing file {data_path} failed")
-            return False
+            del leaf_to_modify[leaf_name]
+            try:
+                self.db.update({'leaf': leaf_to_modify}, doc_ids=[find_hash_id])
+            except:
+                print("Database entry could not get updated - skip")
+                return False
 
         self._close_tiny_db()
 

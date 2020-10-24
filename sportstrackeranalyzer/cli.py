@@ -14,6 +14,7 @@ from .module.simple_actions import set_user
 from .module.simple_actions import mod_user
 from .module.simple_actions import find_tracks
 from .module.simple_actions import remove_tracks
+from .module.simple_actions import remove_leaves
 from .module.simple_actions import collect_cli_user_info
 
 from .module.runtastic import Runtastic
@@ -131,6 +132,11 @@ def main():
         track_hash = args.hash
 
         remove_tracks(track_hash)
+
+    elif args._[0] == "removeLeaves":
+        track_hash = args.hash
+
+        remove_leaves(track_hash)
 
     return 0
 
