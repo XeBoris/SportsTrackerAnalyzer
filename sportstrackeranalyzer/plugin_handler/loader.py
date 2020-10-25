@@ -1,6 +1,6 @@
 from sportstrackeranalyzer.plugin_handler.plugin_collector import Collector, NameCollector, ClassCollector
 from sportstrackeranalyzer.plugins.plugin_simple_distances import Plugin_SimpleDistance
-
+from sportstrackeranalyzer.plugins.plugin_aggregates import Plugin_SimpleProjection
 
 class PluginLoader():
 
@@ -58,7 +58,7 @@ class PluginLoader():
         :return:
         """
         self.existing_leaves = existing_leaves
-        self.existing_leave_names = list(existing_leaves.keys())
+        self.existing_leaf_names = list(existing_leaves.keys())
 
     def process(self, plugin_name):
         """
@@ -79,15 +79,21 @@ class PluginLoader():
         required_leaves = leaf_config.get("module_dependencies")
 
         # check if according leaf exists already:
-        if leaf_name in self.existing_leave_names and self.overwrite is False:
+        if leaf_name in self.existing_leaf_names and self.overwrite is False:
             # return 2: Plugin/Leaf is satisfied already
+            print("Nothing to do, leaf exists already.")
             return 2
 
         # if not, check if necessary perquisites exits as leaves:
-        check_if_in_list = any(item in required_leaves for item in self.existing_leave_names)
-        if check_if_in_list is False:
+        flag = False
+        if ((set(required_leaves) & set(self.existing_leaf_names)) == set(required_leaves)): flag = True
+
+        if flag is False:
             # return 1: There was a problem with pre-existing leaves. In that case, we
             # need to think a bit how to proceed here...
+            print("Existing leaves: ", self.existing_leaf_names)
+            print("Required leaves: ", required_leaves)
+            print("--> mismatch")
             return 1
 
         # This plugin needs certain prequisits to be loaded in memory (pandas DataFrame)
@@ -107,14 +113,16 @@ class PluginLoader():
         process_obj.set_plugin_data(leaves_db)
 
         # Run the processor:
-        process_obj.run()
-
+        try:
+            process_obj.run()
+        except:
+            pass
         # Extract the processed data:
         proc_success = process_obj.get_processing_success() # Was processing successful?
         df_result = process_obj.get_result() # A DataFrame with the result
 
         print(proc_success)
-        print(df_result)
+        # print(df_result)
 
         if proc_success is True:
             # If we have a positive message on processing, we go on

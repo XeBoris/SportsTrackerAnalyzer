@@ -82,7 +82,7 @@ class Plugin_SimpleDistance():
         dt_list = []
         dx_list = []
         dxz_list = []
-
+        time_list = []
         gps0 = None
         time0 = None
 
@@ -90,7 +90,7 @@ class Plugin_SimpleDistance():
             # Extract the first row
             i_gps = (row[1]["latitude"], row[1]["longitude"], row[1]["altitude"])
             i_time = row[1]["timestamp"]
-
+            time_list.append(i_time)
             # Set the gps/time to zero
             if gps0 is None:
                 gps0 = i_gps
@@ -123,6 +123,7 @@ class Plugin_SimpleDistance():
 
         # Extract information from the calculations for the final dataframe:
         results = {
+            'timestamp': time_list,
             'duration': dt_list,
             'duration_sum': dt_cumsum_list,
             'dist_geodasic': dx_list,
@@ -134,6 +135,7 @@ class Plugin_SimpleDistance():
         }
 
         self.df_result = pd.DataFrame(data=results)
+
 
         #if you make it to here:
         self.proc_success = True

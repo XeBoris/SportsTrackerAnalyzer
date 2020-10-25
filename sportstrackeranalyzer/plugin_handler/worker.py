@@ -51,7 +51,10 @@ for i_track in user_tracks:
     if args.route_by_hash is not None and args.route_by_hash != i_track_hash:
         continue
 
+    print("----------------------------------------")
+    print("Track:")
     print(i_track)
+    print("----------------------------------------")
 
     existing_leaves = dbh.get_all_leaves_for_track(track_hash=i_track_hash)
     if existing_leaves is None:
