@@ -3,8 +3,11 @@ import argparse
 from sportstrackeranalyzer.plugin_handler.loader import PluginLoader
 from sportstrackeranalyzer.module.db_handler import DataBaseHandler
 
-
-
+#Add a argparser to make life simpler for now:
+parser = argparse.ArgumentParser()
+#parser.add_argument('_', nargs='*')
+parser.add_argument('--route-by-hash', dest='route_by_hash', type=str, default=None)
+args = parser.parse_args()
 
 db_type = "FileDataBase"
 db_path = "/home/koenig/STAtest"
@@ -41,12 +44,17 @@ all_available_plugins = pl.get_all_plugins()
 
 
 for i_track in user_tracks:
-    print(i_track)
 
     # print()
     i_track_hash = i_track.get("track_hash")
-    continue
-    # if i_track_hash ==
+
+    if args.route_by_hash is not None and args.route_by_hash != i_track_hash:
+        continue
+
+    print("----------------------------------------")
+    print("Track:")
+    print(i_track)
+    print("----------------------------------------")
 
     existing_leaves = dbh.get_all_leaves_for_track(track_hash=i_track_hash)
     if existing_leaves is None:
