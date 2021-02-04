@@ -12,10 +12,12 @@ from .module.simple_actions import load_db
 from .module.simple_actions import add_user
 from .module.simple_actions import set_user
 from .module.simple_actions import mod_user
+from .module.simple_actions import list_user
 from .module.simple_actions import find_tracks
 from .module.simple_actions import remove_tracks
 from .module.simple_actions import remove_leaves
 from .module.simple_actions import collect_cli_user_info
+from .module.simple_actions import sync_strava
 
 from .module.runtastic import Runtastic
 from .module.strava import Strava
@@ -70,6 +72,9 @@ def main():
         init_user_dictionary = collect_cli_user_info()
         add_user(init_user_dictionary)
 
+    elif args._[0] == "listUser":
+        list_user()
+
     elif args._[0] == "modUser":
         #prepare to modify the user database
         db_key = args.key
@@ -121,6 +126,14 @@ def main():
                 st.set_gps_path(gps_path=args.path)
                 st.import_strava_gpx_from_path()
 
+        elif track_source == "strava" and source_type == "api":
+            st = Strava()
+
+            sync_date = args.date #extract datetimes to sync
+            st.set_activity_dates(sync_date)
+            st.import_strava_api()
+
+
     elif args._[0] == "findTracks":
         track_source = args.track_source
         source_type = args.source_type
@@ -137,6 +150,27 @@ def main():
         track_hash = args.hash
 
         remove_leaves(track_hash)
+
+    elif args._[0] == "authorizeStrava":
+        from .module.strava_auth_routes import urls_blueprint
+        import webbrowser
+        from threading import Timer
+        from flask import Flask
+
+        def open_browser():
+            webbrowser.open_new('http://127.0.0.1:5000/')
+
+
+        app = Flask(__name__)
+        app.register_blueprint(urls_blueprint)
+        Timer(1, open_browser).start()
+        app.run(debug=True)
+
+    elif args._[0] == "syncStrava":
+
+        date = args.date
+
+
 
     return 0
 

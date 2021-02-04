@@ -7,11 +7,18 @@ from sportstrackeranalyzer.module.db_handler import DataBaseHandler
 parser = argparse.ArgumentParser()
 #parser.add_argument('_', nargs='*')
 parser.add_argument('--route-by-hash', dest='route_by_hash', type=str, default=None)
+parser.add_argument('--db-type', dest='db_type', type=str, default='FileDataBase')
+parser.add_argument('--db-name', dest='db_name', type=str, default='testDB')
+parser.add_argument('--db-path', dest='db_path', type=str, default='/home/koenig/STAtest')
 args = parser.parse_args()
 
-db_type = "FileDataBase"
-db_path = "/home/koenig/STAtest"
-db_name = "testDB"
+db_type = args.db_type
+db_path = args.db_path
+db_name = args.db_name
+
+#db_type = "FileDataBase"
+#db_path = "/home/koenig/STAtest"
+#db_name = "testDB"
 
 dbh = DataBaseHandler(db_type=db_type)
 dbh.set_db_path(db_path=db_path)

@@ -3,9 +3,12 @@ import os
 import datetime
 from shutil import copyfile, move
 import shelve
+from stravalib import Client
 
 from .db_handler import DataBaseHandler
 from .shelve_handler import ShelveHandler
+
+from .strava import StravaTokenHandler
 
 """
 This file contains simple actions which are defined outside of classes because of their simplicity
@@ -15,7 +18,6 @@ This file contains simple actions which are defined outside of classes because o
 def create_db(db_type=None,
               db_name=None,
               db_path=None):
-
     dbh = DataBaseHandler(db_type=db_type)
     dbh.set_db_path(db_path=db_path)
     dbh.set_db_name(db_name=db_name)
@@ -23,10 +25,10 @@ def create_db(db_type=None,
     dbh.create_db_user()
     dbh.create_db_tracks()
 
+
 def load_db(db_type=None,
             db_name=None,
             db_path=None):
-
     dbh = DataBaseHandler(db_type=db_type)
     dbh.set_db_path(db_path=db_path)
     dbh.set_db_name(db_name=db_name)
@@ -59,6 +61,7 @@ def collect_cli_user_info():
                "user_sex": user_sex}
     return retdict
 
+
 def set_user(db_user=None):
     """
     This function allows to overwrite/set a pre-defined user to which new records/tracks
@@ -74,12 +77,12 @@ def set_user(db_user=None):
     dbh.set_db_path(db_path=db_dict["db_path"])
     dbh.set_db_name(db_name=db_dict["db_name"])
 
-    #test if requested user is part of the database
+    # test if requested user is part of the database
     search_result = dbh.search_user(db_user, by="username")
     nb_search_result = len(search_result)
 
     if len(search_result) == 1:
-        #Update Shelve:
+        # Update Shelve:
         db = {"db_user": search_result[0].get("user_username"),
               "db_hash": search_result[0].get("user_hash")}
 
@@ -91,18 +94,20 @@ def set_user(db_user=None):
     else:
         print("We have found multiple user ids. Please select the one you are referring to:")
         for k, db_entry in enumerate(search_result):
-
             p = "[{k}] | Name: {user_surname} {user_lastname} | Username: {user_username}".format(k=k,
-                                                                                              user_surname=db_entry.get("user_surname"),
-                                                                                              user_lastname=db_entry.get("user_lastname"),
-                                                                                              user_username=db_entry.get("user_username")
-                                                                                              )
+                                                                                                  user_surname=db_entry.get(
+                                                                                                      "user_surname"),
+                                                                                                  user_lastname=db_entry.get(
+                                                                                                      "user_lastname"),
+                                                                                                  user_username=db_entry.get(
+                                                                                                      "user_username")
+                                                                                                  )
             print(p)
         print("Choose a number:")
-        selected_hash = input(f"Select number 0 to {nb_search_result-1}: ")
+        selected_hash = input(f"Select number 0 to {nb_search_result - 1}: ")
         selected_hash = search_result[int(selected_hash)]
 
-        #Update Shelve:
+        # Update Shelve:
         db = {"db_user": selected_hash.get("user_username"),
               "db_hash": selected_hash.get("user_hash")}
 
@@ -110,8 +115,8 @@ def set_user(db_user=None):
 
     del db_temp
 
-def add_user(init_user_dictionary):
 
+def add_user(init_user_dictionary):
     db_temp = ShelveHandler()
     db_dict = db_temp.read_shelve_by_keys(["db_name", "db_type", "db_path"])
 
@@ -123,8 +128,29 @@ def add_user(init_user_dictionary):
 
     del db_temp
 
-def mod_user(key, value, date):
 
+def list_user():
+    db_temp = ShelveHandler()
+    db_dict = db_temp.read_shelve_by_keys(["db_name",
+                                           "db_type",
+                                           "db_path",
+                                           "db_user",
+                                           "db_hash"])
+
+
+    dbh = DataBaseHandler(db_type=db_dict["db_type"])
+    dbh.set_db_path(db_path=db_dict["db_path"])
+    dbh.set_db_name(db_name=db_dict["db_name"])
+
+    db_entry = dbh.list_user_by_hash(db_dict["db_hash"])
+
+    print(f"DB User Overview: {db_entry['user_surname']} {db_entry['user_lastname']}:")
+    for i_key in db_entry.keys():
+        print(f" [{i_key}] \t {db_entry[i_key]}")
+
+    del db_temp
+
+def mod_user(key, value, date):
     db_temp = ShelveHandler()
     db_dict = db_temp.read_shelve_by_keys(["db_name",
                                            "db_type",
@@ -137,6 +163,7 @@ def mod_user(key, value, date):
     dbh.set_db_name(db_name=db_dict["db_name"])
 
     dbh.mod_user_by_hash(db_dict["db_hash"], key, value, date)
+
 
 def find_tracks(track_source, source_type, date):
     """
@@ -180,15 +207,14 @@ def find_tracks(track_source, source_type, date):
     dbh.set_db_path(db_path=db_dict["db_path"])
     dbh.set_db_name(db_name=db_dict["db_name"])
 
-
     if date is not None:
         branches = dbh.search_branch(key="start_time", attribute=[date_beg, date_end], how="between")
 
     for i_branch in branches:
-        tr_offset_beg = int(i_branch.get("start_time_timezone_offset"))/1000
-        tr_offset_end = int(i_branch.get("end_time_timezone_offset"))/1000
-        tr_beg = datetime.datetime.utcfromtimestamp(i_branch.get("start_time")/1000+tr_offset_beg)
-        tr_end = datetime.datetime.utcfromtimestamp(i_branch.get("end_time")/1000+tr_offset_end)
+        tr_offset_beg = int(i_branch.get("start_time_timezone_offset")) / 1000
+        tr_offset_end = int(i_branch.get("end_time_timezone_offset")) / 1000
+        tr_beg = datetime.datetime.utcfromtimestamp(i_branch.get("start_time") / 1000 + tr_offset_beg)
+        tr_end = datetime.datetime.utcfromtimestamp(i_branch.get("end_time") / 1000 + tr_offset_end)
         tr_hash = i_branch.get("track_hash")
         tr_title = i_branch.get("title")
         tr_leaves = i_branch.get("leaf")
@@ -205,7 +231,6 @@ def find_tracks(track_source, source_type, date):
 
 
 def remove_tracks(track_hash):
-
     def list_files(path):
         f = []
         for (dirpath, dirnames, filenames) in os.walk(path):
@@ -275,7 +300,7 @@ def remove_tracks(track_hash):
             print("Something went wrong while removing the leaf")
             exit()
 
-    #Re-read the track and remove it under the condition of no leaves are in:
+    # Re-read the track and remove it under the condition of no leaves are in:
     branch = dbh.read_branch(key="track_hash", attribute=track_hash)[0]
     track_hash = branch.get("track_hash")
     if len(branch.get("leaf")) == 0:
@@ -283,8 +308,8 @@ def remove_tracks(track_hash):
         if del_db_approval is True:
             print("Done!")
 
-def remove_leaves(track_hash):
 
+def remove_leaves(track_hash):
     def list_files(path):
         f = []
         for (dirpath, dirnames, filenames) in os.walk(path):
@@ -349,7 +374,7 @@ def remove_leaves(track_hash):
     if input_leaf == "c":
         print("nothing to remove")
         exit()
-        
+
     del_db_approval = dbh.delete_leaf(leaf_name=input_leaf,
                                       track_hash=track_hash)
     if del_db_approval is True:
@@ -357,3 +382,57 @@ def remove_leaves(track_hash):
     else:
         print("Something went wrong while removing the leaf")
     exit()
+
+def sync_strava(date=None):
+    date_beg = None
+    date_end = None
+    if date is not None:
+        date_beg = date.split("-")[0]
+        date_end = date.split("-")[1]
+    if "T" in date_beg:
+        date_beg = datetime.datetime.strptime(date_beg, "%Y%m%dT%H%M%S")
+    else:
+        date_beg = datetime.datetime.strptime(date_beg, "%Y%m%d")
+    if "T" in date_end:
+        date_end = datetime.datetime.strptime(date_end, "%Y%m%dT%H%M%S")
+    else:
+        date_end = datetime.datetime.strptime(date_end, "%Y%m%d")
+
+    sth = StravaTokenHandler()
+    sth.load_token()
+    sth.update_token()
+    del sth
+
+    db_temp = ShelveHandler()
+    db_dict = db_temp.read_shelve_by_keys(["db_name",
+                                           "db_type",
+                                           "db_path",
+                                           "db_user",
+                                           "db_hash",
+                                           "db_strava"])
+
+    dbh = DataBaseHandler(db_type=db_dict["db_type"])
+    dbh.set_db_path(db_path=db_dict["db_path"])
+    dbh.set_db_name(db_name=db_dict["db_name"])
+
+    print(db_dict)
+
+    print(date_beg, date_end)
+    print("Sync Strava")
+
+    date_beg = date_beg.strftime("%Y-%m-%dT%H:%M:%SZ")
+    date_end = date_end.strftime("%Y-%m-%dT%H:%M:%SZ")
+    print(date_beg, date_end)
+
+    client = Client(access_token=db_dict["db_strava"]["access_token"])
+    athlete = client.get_athlete()
+    athlete_id = athlete.id
+
+
+    for activity in client.get_activities(
+                                          before=date_end,
+                                          after=date_beg,
+                                          limit=5):
+        print(activity.id)
+        print(activity.name)
+

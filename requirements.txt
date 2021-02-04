@@ -11,9 +11,11 @@ twine==1.14.0
 tinydb==4.1.1
 jupyter==1.0.0
 jupyterlab==2.2.8
-notebook==6.1.4
+notebook==6.1.5
 gmplot==1.4.1
 mplleaflet==0.0.5
 matplotlib==3.3.2
 folium==0.11.0
 gpxpy==1.4.2
+dash==1.19.0
+stravalib==0.10.2

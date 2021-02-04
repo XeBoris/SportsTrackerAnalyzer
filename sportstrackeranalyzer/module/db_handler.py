@@ -32,8 +32,14 @@ class DataBaseHandler(FileDataBase):
     def create_user(self, init_user_dictionary=None):
         return self._handler_type.create_user(init_user_dictionary)
 
-    def mod_user_by_hash(self, hash, key, value, date):
-        return self._handler_type.mod_user_by_hash(hash, key, value, date)
+    def mod_user_by_hash(self, hash=None, key=None, value=None, date_obj=None):
+        return self._handler_type.mod_user_by_hash(hash=hash,
+                                                   key=key,
+                                                   value=value,
+                                                   date_obj=date_obj)
+
+    def list_user_by_hash(self, hash):
+        return self._handler_type.list_user_by_hash(hash=hash)
 
     def search_user(self, user=None, by=None):
         return self._handler_type.search_user(user, by)
@@ -138,3 +144,6 @@ class DataBaseHandler(FileDataBase):
     # High level operations:
     def get_all_leaves_for_track(self, track_hash=None):
         return self._handler_type.get_all_leaves_for_track(track_hash=track_hash)
+
+    def get_all_users(self, by=None):
+        return self._handler_type.get_all_users(by=by)

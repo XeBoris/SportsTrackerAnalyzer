@@ -40,3 +40,12 @@ class ShelveHandler():
         self._close_shelve()
 
         return ret_dict
+
+    def get_all_shelve_keys(self):
+        self._open_shelve()
+
+        all_shelve_keys = [i for i in self.db.keys()]
+
+        self._close_shelve()
+
+        return all_shelve_keys

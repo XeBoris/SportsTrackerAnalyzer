@@ -2,15 +2,19 @@ import os
 import uuid
 import json
 import hashlib
+import datetime
 import pandas as pd
+import pandas.io.common #get pandas exceptions
 from tinydb import TinyDB, Query, where
 from shutil import copyfile, move
 from tinydb.operations import delete
+
 
 class FileDataBase(object):
     """
 
     """
+
     def __init__(self):
         self._db_path = None
         self._db_name = None
@@ -34,7 +38,7 @@ class FileDataBase(object):
         if self._db_name is None:
             self._db_name = "db0"
 
-        #create the individual database names from the names
+        # create the individual database names from the names
         self._db_name_final = f"db-{self._db_name}.tiny"
         self._db_table_users = f"db_{self._db_name}_users"
         self._db_table_tracks = f"db_{self._db_name}_branches"
@@ -44,7 +48,7 @@ class FileDataBase(object):
 
         print("DBFile:CreateDbUser")
 
-        #create folder which contains the database if not existing:
+        # create folder which contains the database if not existing:
         if os.path.exists(self._db_path) is False:
             os.mkdir(self._db_path)
             print("Data location successfully created")
@@ -67,7 +71,7 @@ class FileDataBase(object):
 
         print("DBFile:CreateDbTracks")
 
-        #create folder which contains the database if not existing:
+        # create folder which contains the database if not existing:
         if os.path.exists(self._db_path) is False:
             os.mkdir(self._db_path)
             print("Data location successfully created")
@@ -138,17 +142,16 @@ class FileDataBase(object):
         uuid_hash = str(uuid.uuid4()).split("-")[0]
         init_user_dictionary['user_hash'] = f"{md5_hash}{uuid_hash}"
 
-        #ToDO Write some exceptions:
+        # ToDO Write some exceptions:
         db = TinyDB(os.path.join(self._db_path, self._db_name_final))
         db.default_table_name = self._db_table_users
         db.insert(init_user_dictionary)
         db.close()
 
-
     def search_user(self, user, by="username"):
         self._setup()
 
-        #ToDO Write some exceptions:
+        # ToDO Write some exceptions:
         db = TinyDB(os.path.join(self._db_path, self._db_name_final))
         db.default_table_name = self._db_table_users
 
@@ -178,33 +181,72 @@ class FileDataBase(object):
         f.close()
         return ret
 
-    def mod_user_by_hash(self, hash, key, value, date):
+    def mod_user_by_hash(self, hash, key, value, date_obj):
         """
-        Modify the user database
+        Modify the user database - DO NOT USE THIS IN REAL LIFE FOR NOW.
         :param key:
         :param value:
         :return:
         """
-        self._setup()
-        f = open(os.path.join(self._db_path, self._db_user_name), "r")
-        ret = []
-        for i_entry in f:
-            i_obj = json.loads(i_entry)
-            if i_obj.get("user_hash") != hash:
-                ret.append(i_obj)
-                continue
-            i_obj[key] = value
-            ret.append(i_obj)
-        f.close()
 
-        f = open(os.path.join(self._db_path, self._db_user_name), "w")
-        for i_entry in ret:
-            f.write(json.dumps(i_entry)+"\n")
+        self._open_tiny_db()
+        self.db.default_table_name = self._db_table_users
 
-        f.close()
-        return ret
+        #Select the user by hash:
 
-     #This part handles write/read operations on the tracks database:
+        db_entry = self.db.get(self.user["user_hash"] == hash)
+        db_entry_id = db_entry.doc_id
+
+        value = json.loads(value)
+
+        db_value = []
+        if key not in db_entry:
+            value['datetime'] = datetime.datetime.timestamp(datetime.datetime.now())
+            db_value = [value]
+        else:
+            #fill with old information:
+            db_value.extend(db_entry[key])
+
+            #prepare new values to be added:
+            value['datetime'] = datetime.datetime.timestamp(datetime.datetime.now())
+            db_value.append(value)
+
+        #This section decides if you update the database or not:
+        if key == 'strava':
+            #We count how often THE SAME client_secret is seen.
+            #Only if there is a change, write back to database:
+            p = [i.get("client_secret") for i in db_value]
+            contains_duplicates = any(p.count(element) > 1 for element in p)
+
+            if contains_duplicates is False:
+                print("Update User Database")
+                self.db.update({key: db_value},
+                               doc_ids=[db_entry_id])
+            else:
+                print("No need for an update!")
+
+        self._close_tiny_db()
+
+        return 0
+
+
+    def list_user_by_hash(self, hash):
+        """
+
+        :param hash:
+        :return:
+        """
+
+        self._open_tiny_db()
+        self.db.default_table_name = self._db_table_users
+
+        #Select the user by hash:
+        db_entry = self.db.get(self.user["user_hash"] == hash)
+        self._close_tiny_db()
+
+        return db_entry
+
+    # This part handles write/read operations on the tracks database:
     #  - Tracks are like branches of a tree
     def _open_tiny_db(self):
         self._setup()
@@ -214,8 +256,6 @@ class FileDataBase(object):
 
     def _close_tiny_db(self):
         self.db.close()
-
-
 
     def write_branch(self,
                      db_operation="new",
@@ -280,7 +320,7 @@ class FileDataBase(object):
     def search_branch(self, key=None, attribute=None, how=None):
         self._open_tiny_db()
         if isinstance(attribute, list) and how == "between":
-            db_entry = self.db.search( (self.user[key] >= attribute[0]) & (self.user[key] <= attribute[1]))
+            db_entry = self.db.search((self.user[key] >= attribute[0]) & (self.user[key] <= attribute[1]))
         self._close_tiny_db()
         return db_entry
 
@@ -298,7 +338,7 @@ class FileDataBase(object):
         self._close_tiny_db()
         return delbranch
 
-    #This part handles write/read operation on metadata
+    # This part handles write/read operation on metadata
     #  - metadata to tracks are like leaves which belong to branch
 
     def write_leaf(self,
@@ -347,7 +387,7 @@ class FileDataBase(object):
                 leaf_storage = os.path.join(storage_path, f"{leaf_hash}.csv")
                 leaf.to_csv(path_or_buf=leaf_storage,
                             index=False,
-                            #compression="gzip",
+                            # compression="gzip",
                             )
             except:
                 print("Something went wrong to write the Pandas DataFrame to disk")
@@ -385,8 +425,8 @@ class FileDataBase(object):
                   ):
 
         # not used,... maybe later
-        #self._open_tiny_db()
-        #self._close_tiny_db()
+        # self._open_tiny_db()
+        # self._close_tiny_db()
 
         # create the data path:
         data_path = os.path.join(self._db_path, directory, f"{leaf_hash}.csv")
@@ -394,7 +434,11 @@ class FileDataBase(object):
         df = None
 
         if leaf_type == "DataFrame" and os.path.exists(data_path) is True:
-            df = pd.read_csv(data_path)
+            try:
+                df = pd.read_csv(data_path)
+            except pandas.io.common.EmptyDataError as e:
+                print(f"{e} found {data_path}")
+                df = None
         elif leaf_type == "something" and os.path.exists(data_path) is True:
             df = None
         else:
@@ -482,7 +526,7 @@ class FileDataBase(object):
         """
         try:
             branch = self.read_branch(key="track_hash",
-                                  attribute=track_hash)
+                                      attribute=track_hash)
 
             branch_leaves = branch[0]
         except:
@@ -492,3 +536,18 @@ class FileDataBase(object):
             return branch_leaves.get("leaf")
         except:
             return []
+
+    def get_all_users(self, by=None):
+        """
+
+        :return:
+        """
+
+        # ToDO Write some exceptions:
+
+        db = TinyDB(os.path.join(self._db_path, self._db_name_final))
+        db.default_table_name = self._db_table_users
+        result = [r.get(by) for r in db]
+        db.close()
+
+        return result

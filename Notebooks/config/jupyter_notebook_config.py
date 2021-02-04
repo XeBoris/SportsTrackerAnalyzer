@@ -85,12 +85,12 @@
 #c.NotebookApp.allow_root = False
 
 ## DEPRECATED use base_url
-c.NotebookApp.base_project_url = '/home/koenig/Projects/project_SportTracker/actual_stack/SportsTrackerAnalyzer/Notebooks'
+#c.NotebookApp.base_project_url = '/home/koenig/Projects/project_SportTracker/actual_stack/SportsTrackerAnalyzer/Notebooks'
 
 ## The base URL for the notebook server.
 #  
 #  Leading and trailing slashes can be omitted, and will automatically be added.
-#c.NotebookApp.base_url = '/'
+c.NotebookApp.base_url = '/home/koenig/Projects/project_SportTracker/actual_stack/SportsTrackerAnalyzer/Notebooks'
 
 ## Specify what command to use to invoke a web browser when opening the notebook.
 #  If not specified, the default browser will be determined by the `webbrowser`
