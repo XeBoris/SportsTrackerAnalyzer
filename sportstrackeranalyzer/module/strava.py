@@ -14,6 +14,7 @@ from .db_handler import DataBaseHandler
 from .shelve_handler import ShelveHandler
 
 from .blueprint import Blueprint
+from .type_mapper import TypeMapper
 
 
 class StravaTokenHandler(object):
@@ -73,12 +74,7 @@ class Strava():
         self.gps_path = None
         self.df = None
         self.track_name = None
-        self.obj_gps = {
-            "timestamp": [],
-            "longitude": [],
-            "latitude": [],
-            "altitude": []
-        }
+
         self.activity_raw_dates = None
         self.activity_raw_date_beg = None
         self.activity_raw_date_end = None
@@ -86,7 +82,6 @@ class Strava():
         self.bp = Blueprint()
 
         self._init_database_handler()
-        self._empty_gpx_info()
 
     def _get_all_sport_sessions(self):
         """
@@ -115,13 +110,6 @@ class Strava():
         self.dbh = DataBaseHandler(db_type=self.db_dict["db_type"])
         self.dbh.set_db_path(db_path=self.db_dict["db_path"])
         self.dbh.set_db_name(db_name=self.db_dict["db_name"])
-
-    def _empty_gpx_info(self):
-
-        self.obj_gps["timestamp"] = []
-        self.obj_gps["longitude"] = []
-        self.obj_gps["latitude"] = []
-        self.obj_gps["altitude"] = []
 
     def set_gps_file(self, gps_file):
         self.gps_file = gps_file
@@ -179,7 +167,6 @@ class Strava():
             print(gps_file)
             self.set_gps_file(gps_file)
             self.import_strava_gpx()
-            self._empty_gpx_info()
 
     def import_strava_gpx(self):
         # Import a single gpx file here:
@@ -188,9 +175,8 @@ class Strava():
         beg_branch = int(min(self.df["timestamp"]) * 1000)
         end_branch = int(max(self.df["timestamp"]) * 1000)
 
-        # Load the gpx file and create the branch/track info
-
-        blueprint_session = self.bp.strava_session()
+        # Load the blueprint:
+        blueprint_session = self.bp.get_branch_blueprint("1")
 
         blueprint_session["start_time"] = beg_branch
         blueprint_session["end_time"] = end_branch
@@ -227,8 +213,13 @@ class Strava():
                               track=blueprint_session,
                               track_hash=hash_str)
 
-        # FIRST LEAF:
+        # GPS LEAF:
         # We create a branch which holds only gps relevant information:
+        # HINT: We do not load the blueprint here! We have already
+        #       a DataFrame with the important information to build the
+        #       the leaf.
+        #       The Blueprint is used in the function load_gpx() here in
+        #       the class.
         # gps relevant infomation:
         obj_gps_defintion = ["timestamp", "longitude", "latitude",
                              "altitude"]
@@ -246,7 +237,7 @@ class Strava():
                                 leaf_type="DataFrame"
                                 )
         if r is True:
-            print("First leaf written")
+            print("GPS leaf written")
             del df_sel
             del self.df
 
@@ -271,9 +262,11 @@ class Strava():
             # The first order task is to form a common branch description
             # from the Strava API activity (aka. activity -> branch/track)
             write_success, hash_str = self._handle_activity_from__strava_api(activity=activity)
+
             if write_success is False:
                 print("We do not need to continue when creating the branch/track creation fails.")
                 break
+
 
             #Extract more details from the activity via the API
             activity_stream = client.get_activity_streams(activity_id=activity.id,
@@ -281,6 +274,8 @@ class Strava():
                                                           resolution="high",
                                                           # series_type=None
                                                           )
+
+            #continue
             # Create a GPS data leaf
             self._handle_activity_from_strava_api_gps(activity=activity,
                                                       activity_stream=activity_stream,
@@ -290,6 +285,7 @@ class Strava():
             self._handle_activity_from_strava_api_distances(activity=activity,
                                                             activity_stream=activity_stream,
                                                             hash_str=hash_str)
+
             # Create strava based metadata leaf
             self._handle_activity_from_stravi_api_metadata(activity=activity,
                                                            activity_stream=activity_stream,
@@ -304,6 +300,10 @@ class Strava():
         :param hash_str:
         :return:
         """
+
+        blueprint_session = self.bp.get_leaf_blueprint(leaf_type="distance",
+                                                       version="1")
+
         activity_start_time = int(datetime.datetime.timestamp(activity.start_date.replace(tzinfo=None)))
 
         p_time = activity_stream['time'].data
@@ -311,13 +311,13 @@ class Strava():
         p_distance = activity_stream['distance'].data
         p_velocity_smooth = activity_stream['velocity_smooth'].data
 
-        data_dict = {"timestamp": [activity_start_time + i for i in p_time],
-                     "distance": p_distance,
-                     "duration": p_time,
-                     "velocity_smooth": p_velocity_smooth
-                     }
+        blueprint_session["timestamp"] = [activity_start_time + i for i in p_time]
+        blueprint_session["distance"] = p_distance
+        blueprint_session["duration"] = p_time
+        blueprint_session["speed"] = p_velocity_smooth
+        blueprint_session["version"] = [None for i in range(len(p_time))]
 
-        df_sel = pd.DataFrame(data_dict)
+        df_sel = pd.DataFrame(blueprint_session)
         obj_gps_defintion = list(df_sel.columns)
 
         # Create leaf configuration:
@@ -361,21 +361,23 @@ class Strava():
         except:
             max_watts = None
 
-        data_dict = {
-            "longitude": [activity.start_latlng[1]],
-            "latitude": [activity.start_latlng[0]],
-            "calories": [activity.calories],
-            "max_speed": [max_speed],
-            "average_speed": [average_speed],
-            "average_watts": [average_watts],
-            "max_watts": [max_watts],
-            "private": [activity.private],
-            "commute": [activity.commute],
-            "subjective_feeling_id": [activity.suffer_score],
-            "pause_duration": [(activity.elapsed_time - activity.moving_time).total_seconds()],
-        }
+        blueprint_session = self.bp.get_leaf_blueprint(leaf_type="strava_metadata",
+                                                       version="1")
 
-        df_sel = pd.DataFrame(data_dict)
+        blueprint_session["longitude"] = [activity.start_latlng[1]]
+        blueprint_session["latitude"] = [activity.start_latlng[0]]
+        blueprint_session["calories"] = [activity.calories]
+        blueprint_session["max_speed"] = [max_speed]
+        blueprint_session["average_speed"] = [average_speed]
+        blueprint_session["average_watts"] = [average_watts]
+        blueprint_session["max_watts"] = [max_watts]
+        blueprint_session["private"] = [activity.private]
+        blueprint_session["commute"] = [activity.commute]
+        blueprint_session["subjective_feeling_id"] = [activity.suffer_score]
+        blueprint_session["pause_duration"] = [(activity.elapsed_time - activity.moving_time).total_seconds()]
+
+
+        df_sel = pd.DataFrame(blueprint_session)
         obj_gps_defintion = list(df_sel.columns)
 
         # Create leaf configuration:
@@ -405,8 +407,12 @@ class Strava():
         :param hash_str:
         :return:
         """
+
+        blueprint_session = self.bp.get_leaf_blueprint(leaf_type="positions",
+                                                       version="1")
+
+
         activity_start_time = int(datetime.datetime.timestamp(activity.start_date.replace(tzinfo=None)))
-        print(activity_start_time)
 
         # print(activity_stream)
         p_latlng = activity_stream['latlng'].data
@@ -414,15 +420,15 @@ class Strava():
         p_distance = activity_stream['distance'].data
         p_altitude = activity_stream['altitude'].data
         p_velocity_smooth = activity_stream['velocity_smooth'].data
-        print(len(p_latlng), len(p_time))
 
-        data_dict = {"timestamp": [activity_start_time + i for i in p_time],
-                     "longitude": [i[1] for i in p_latlng],
-                     "latitude": [i[0] for i in p_latlng],
-                     "altitude": p_altitude
-                     }
+        #Start to fill the known fields:
+        blueprint_session["timestamp"] = [activity_start_time + i for i in p_time]
+        blueprint_session["longitude"] = [i[1] for i in p_latlng]
+        blueprint_session["latitude"] = [i[0] for i in p_latlng]
+        blueprint_session["altitude"] = p_altitude
+        blueprint_session["version"] = [None for i in range(len(p_time))]
 
-        df_sel = pd.DataFrame(data_dict)
+        df_sel = pd.DataFrame(blueprint_session)
         obj_gps_defintion = list(df_sel.columns)
 
         # Create leaf configuration:
@@ -455,15 +461,21 @@ class Strava():
         :param activity:
         :return:
         """
+
+        # Load the blueprint:
+        blueprint_session = self.bp.get_branch_blueprint("1")
+
         # Extract the descriptive parameters first:
         timezone_offset = (activity.start_date_local - activity.start_date.replace(tzinfo=None)).total_seconds()
         activity_start_time = activity.start_date.replace(tzinfo=None)
         activity_end_time = (activity_start_time + activity.elapsed_time).replace(tzinfo=None)
 
-        # Load the blueprint:
-        blueprint_session = self.bp.strava_session()
-        blueprint_session["source"] = "StravaApi"
+        tm = TypeMapper()
+        tm.set_track_source(track_source="strava")
+        tm.loader()
 
+
+        blueprint_session["source"] = "StravaApi"
         blueprint_session["start_time"] = int(datetime.datetime.timestamp(activity_start_time) * 1000)
         blueprint_session["end_time"] = int(datetime.datetime.timestamp(activity_end_time) * 1000)
         blueprint_session["created_at"] = int(datetime.datetime.timestamp(activity_start_time) * 1000)
@@ -472,7 +484,7 @@ class Strava():
         blueprint_session["notes"] = activity.description
         blueprint_session["start_time_timezone_offset"] = int(timezone_offset) * 1000
         blueprint_session["end_time_timezone_offset"] = int(timezone_offset) * 1000
-        blueprint_session["sports_type"] = activity.type  # preliminary
+        blueprint_session["sports_type"] = tm.mapper(activity.type)  # preliminary
 
         # We add a track_hash to each track to make it unique:
         hash_str = f"{blueprint_session.get('start_time')}{blueprint_session.get('end_time')}"
@@ -482,10 +494,19 @@ class Strava():
         # We add the user specific hash to the track/branch for identification:
         blueprint_session["user_hash"] = self.db_dict.get("db_hash")
 
+        ##WE INTRODUCE THIS LATER #ToDo
+        # blueprint_ok = self.bp.check_blueprint(blueprint_session)
+        # if blueprint_ok is False:
+        #     print("Blueprint is not filled out correctly:")
+        #     for k, v in blueprint_session.items():
+        #         print(f"{k}  --  {v}")
+        #     exit()
+
         write_success = self.dbh.write_branch(db_operation="update",
                                               track=blueprint_session,
                                               track_hash=hash_str)
 
+        del tm
         return write_success, hash_str
 
     def load_gps(self):
@@ -494,19 +515,31 @@ class Strava():
         - Takes track name
         :return:
         """
+
+        #We read the gps file first which was set ahead
         self._read_json(self.gps_file)
 
+        #We read a blueprint to be able to version the gps coordidantes
+        blueprint_session = self.bp.get_leaf_blueprint(leaf_type="positions",
+                                                       version="1")
+        blueprint_session["latitude"] = []
+        blueprint_session["longitude"] = []
+        blueprint_session["altitude"] = []
+        blueprint_session["timestamp"] = []
+
+        #Let's loop over the loaded GPX file and extract the infomation
         for track in self.gpx.tracks:
             self.track_name = track.name
             for segment in track.segments:
                 for point in segment.points:
                     # print(point.latitude, point.longitude, point.elevation, point.time)
-                    self.obj_gps["latitude"].append(point.latitude)
-                    self.obj_gps["longitude"].append(point.longitude)
-                    self.obj_gps["altitude"].append(point.elevation)
-                    self.obj_gps["timestamp"].append(point.time)
+                    blueprint_session["latitude"].append(point.latitude)
+                    blueprint_session["longitude"].append(point.longitude)
+                    blueprint_session["altitude"].append(point.elevation)
+                    blueprint_session["timestamp"].append(point.time)
 
-        self.df = pd.DataFrame(self.obj_gps)
+        #Make a DataFrame for transform:
+        self.df = pd.DataFrame(blueprint_session)
         self.df["timestamp"] = pd.to_datetime(self.df["timestamp"])  # Get rid of +Z
         self.df["timestamp"] = pd.DatetimeIndex(self.df["timestamp"]).astype(np.int64) / 1e9  # Convert it to seconds
 

@@ -8,6 +8,7 @@ from .db_handler import DataBaseHandler
 from .shelve_handler import ShelveHandler
 
 from .blueprint import Blueprint
+from .type_mapper import TypeMapper
 
 
 class Runtastic():
@@ -97,10 +98,14 @@ class Runtastic():
         dtime = datetime.datetime.utcfromtimestamp(json_info["start_time"] / 1000).strftime('%Y-%m-%dT%H:%M:%SZ')
         dtime_name = datetime.datetime.utcfromtimestamp(json_info["start_time"] / 1000).strftime('%Y-%m-%d-%H-%M')
 
-        # print(dtime, dtime_name)
-        # print(json_info)
-
         # We will receive the main Runtastic information about the track
+        tm = TypeMapper()
+        tm.set_track_source(track_source="runtastic")
+        tm.loader()
+        json_info["sports_type"] = tm.mapper(json_info.get("sport_type_id"))
+        del tm
+
+
         json_info = self.bp.runtastic_session(json_info)
 
         # We will receive the track (gpx) related information about the track
@@ -192,6 +197,9 @@ class Runtastic():
                 # We create the branch first from the database dump:
                 rt_json = rt_obj.get("json_info")
 
+                #use the branch to write print outputs for now:
+                print(f"Write: {rt_json.get('title')} of sports type {rt_json.get('sports_type')} into DB")
+
                 # We add a track_hash to each track to make it unique:
                 hash_str = f"{rt_json.get('start_time')}{rt_json.get('end_time')}"
                 hash_str = hashlib.md5(hash_str.encode("utf-8")).hexdigest()[0:8]
@@ -199,8 +207,6 @@ class Runtastic():
 
                 # We add the user specific hash to the track/branch for identification:
                 rt_json["user_hash"] = db_dict.get("db_hash")
-
-                # print(rt_json)
 
                 # dbh.write_branch(db_operation="new", track=rt_json)
                 dbh.write_branch(db_operation="update",
@@ -212,9 +218,12 @@ class Runtastic():
                     continue
                 df = pd.DataFrame.from_dict(rt_obj.get("gpx"))
 
-                # FIRST LEAF:
+                # GPS LEAF:
                 # We create a branch which holds only gps relevant information:
                 # gps relevant infomation:
+                # HINT:
+                # - These are also defined in blueprint.py for the GPS leaf!
+                # - Don't add/remove here something what is not in line with it.
                 obj_gps_defintion = ["timestamp", "longitude", "latitude",
                                      "altitude", "accuracy_v", "accuracy_h",
                                      "version"]
@@ -232,12 +241,15 @@ class Runtastic():
                                    leaf_type="DataFrame"
                                    )
                 if r is True:
-                    print("First leaf written")
+                    print("GPS leaf written")
                     del df_sel
 
                 # SECOND LEAF:
                 # We create a branch which holds only gps relevant information:
                 # gps relevant information:
+                # HINT:
+                # - These are also defined in blueprint.py for the GPS leaf!
+                # - Don't add/remove here something what is not in line with it.
                 obj_gps_defintion = ["timestamp", "speed", "duration",
                                      "distance", "elevation_gain", "elevation_loss",
                                      "elevation", "version"]
@@ -257,7 +269,7 @@ class Runtastic():
                                    leaf_type="DataFrame"
                                    )
                 if r is True:
-                    print("Second leaf written")
+                    print("Runtastic distance leaf written")
                     del df_sel
 
                 # Third Leaf: Meta data information:
@@ -281,9 +293,12 @@ class Runtastic():
                                    leaf_type="DataFrame"
                                    )
                 if r is True:
-                    print("Third leaf written")
+                    print("Runtastic metadata leaf written")
                     del df_metadata
 
 
                 # dbh.delete_leaf(leaf_name="distances",
                 #                 track_hash=hash_str)
+
+                #a last line to add for print outs: (remove when logging is added)
+                print()

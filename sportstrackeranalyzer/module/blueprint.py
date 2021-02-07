@@ -1,5 +1,6 @@
 import json
 
+
 class Blueprint():
     """
     This class allows us to
@@ -154,3 +155,106 @@ class Blueprint():
         blueprint["source"] = "StravaGps"
 
         return blueprint
+
+    def _leaf_blueprint_strav_metadata(self, version=None):
+        blueprint = {}
+
+        version_elements = {
+            "v1": ["version", "longitude",
+                   "latitude", "calories", "max_speed",
+                   "average_speed", "average_watts", "max_watts",
+                   "private", "commute", "subjective_feeling_id",
+                   "pause_duration"]
+        }
+
+        if version == "1":
+            for i in version_elements[f"v{version}"]:
+                blueprint[i] = None
+
+        return blueprint
+
+    def _leaf_blueprint_distance(self, version=None):
+        blueprint = {}
+
+        version_elements = {
+            "v1": ["version", "timestamp",
+                   "speed", "duration", "distance",
+                   "elevation_gain", "elevation_loss",
+                   "elevation"]
+        }
+
+        if version == "1":
+            for i in version_elements[f"v{version}"]:
+                blueprint[i] = None
+
+        return blueprint
+
+    def _leaf_blueprint_positions(self, version=None):
+        blueprint = {}
+
+        version_elements = {
+            "v1": ["version", "timestamp",
+                   "longitude", "latitude", "altitude",
+                   "accuracy_v", "accuracy_h"]
+        }
+
+        if version == "1":
+            for i in version_elements[f"v{version}"]:
+                blueprint[i] = None
+
+        return blueprint
+
+    def get_leaf_blueprint(self, leaf_type=None, version=None):
+
+        if leaf_type == "positions":
+            return self._leaf_blueprint_positions(version=version)
+        elif leaf_type == "distance":
+            return self._leaf_blueprint_distance(version=version)
+        elif leaf_type == "strava_metadata":
+            return self._leaf_blueprint_strav_metadata(version=version)
+
+
+    def _branch_blueprint(self, version=None):
+        blueprint = {}
+        version_elements = {
+            "v1": ["start_time", "end_time",
+                   "created_at", "updated_at",
+                   "title", "notes",
+                   "start_time_timezone_offset", "end_time_timezone_offset",
+                   "sports_type", "source"],
+            "v2": ["start_time", "end_time",
+                   "created_at", "updated_at",
+                   "title", "notes",
+                   "timezone_offset",
+                   "sports_type", "source"],
+        }
+
+        if f"v{version}" in version_elements:
+            for i in version_elements[f"v{version}"]:
+                blueprint[i] = None
+        else:
+            pass
+
+        return blueprint
+
+
+    def get_branch_blueprint(self, version = None):
+
+        all_versions = ["1", "2"]
+
+        if version is not None and version not in all_versions:
+            print("Please select a proper version of:")
+            for i_version in all_versions:
+                print(f" - version: {i_version}")
+
+        return self._branch_blueprint(version=version)
+
+    def check_blueprint(self, bluep=None, source_type=None):
+        test = False
+        for key, value in bluep.items():
+            if value is None:
+                return test
+
+        test = True
+        return test
+
