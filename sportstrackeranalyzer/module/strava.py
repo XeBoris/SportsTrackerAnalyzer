@@ -258,7 +258,7 @@ class Strava():
         for activity in client.get_activities(
                 before=self.activity_raw_date_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 after=self.activity_raw_date_beg.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                limit=5):
+                limit=500):
             # The first order task is to form a common branch description
             # from the Strava API activity (aka. activity -> branch/track)
             write_success, hash_str = self._handle_activity_from__strava_api(activity=activity)
@@ -306,10 +306,13 @@ class Strava():
 
         activity_start_time = int(datetime.datetime.timestamp(activity.start_date.replace(tzinfo=None)))
 
-        p_time = activity_stream['time'].data
-        p_timestamp = [activity_start_time + i for i in p_time]
-        p_distance = activity_stream['distance'].data
-        p_velocity_smooth = activity_stream['velocity_smooth'].data
+        try:
+            p_time = activity_stream['time'].data
+            p_timestamp = [activity_start_time + i for i in p_time]
+            p_distance = activity_stream['distance'].data
+            p_velocity_smooth = activity_stream['velocity_smooth'].data
+        except:
+            return False
 
         blueprint_session["timestamp"] = [activity_start_time + i for i in p_time]
         blueprint_session["distance"] = p_distance
@@ -364,17 +367,20 @@ class Strava():
         blueprint_session = self.bp.get_leaf_blueprint(leaf_type="strava_metadata",
                                                        version="1")
 
-        blueprint_session["longitude"] = [activity.start_latlng[1]]
-        blueprint_session["latitude"] = [activity.start_latlng[0]]
-        blueprint_session["calories"] = [activity.calories]
-        blueprint_session["max_speed"] = [max_speed]
-        blueprint_session["average_speed"] = [average_speed]
-        blueprint_session["average_watts"] = [average_watts]
-        blueprint_session["max_watts"] = [max_watts]
-        blueprint_session["private"] = [activity.private]
-        blueprint_session["commute"] = [activity.commute]
-        blueprint_session["subjective_feeling_id"] = [activity.suffer_score]
-        blueprint_session["pause_duration"] = [(activity.elapsed_time - activity.moving_time).total_seconds()]
+        try:
+            blueprint_session["longitude"] = [activity.start_latlng[1]]
+            blueprint_session["latitude"] = [activity.start_latlng[0]]
+            blueprint_session["calories"] = [activity.calories]
+            blueprint_session["max_speed"] = [max_speed]
+            blueprint_session["average_speed"] = [average_speed]
+            blueprint_session["average_watts"] = [average_watts]
+            blueprint_session["max_watts"] = [max_watts]
+            blueprint_session["private"] = [activity.private]
+            blueprint_session["commute"] = [activity.commute]
+            blueprint_session["subjective_feeling_id"] = [activity.suffer_score]
+            blueprint_session["pause_duration"] = [(activity.elapsed_time - activity.moving_time).total_seconds()]
+        except:
+            return False
 
 
         df_sel = pd.DataFrame(blueprint_session)
@@ -414,13 +420,14 @@ class Strava():
 
         activity_start_time = int(datetime.datetime.timestamp(activity.start_date.replace(tzinfo=None)))
 
-        # print(activity_stream)
-        p_latlng = activity_stream['latlng'].data
-        p_time = activity_stream['time'].data
-        p_distance = activity_stream['distance'].data
-        p_altitude = activity_stream['altitude'].data
-        p_velocity_smooth = activity_stream['velocity_smooth'].data
-
+        try:
+            p_latlng = activity_stream['latlng'].data
+            p_time = activity_stream['time'].data
+            p_distance = activity_stream['distance'].data
+            p_altitude = activity_stream['altitude'].data
+            p_velocity_smooth = activity_stream['velocity_smooth'].data
+        except:
+            return False
         #Start to fill the known fields:
         blueprint_session["timestamp"] = [activity_start_time + i for i in p_time]
         blueprint_session["longitude"] = [i[1] for i in p_latlng]

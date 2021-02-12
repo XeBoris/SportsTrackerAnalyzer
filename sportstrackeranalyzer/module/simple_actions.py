@@ -32,6 +32,7 @@ def create_db(db_type=None,
 def load_db(db_type=None,
             db_name=None,
             db_path=None):
+
     dbh = DataBaseHandler(db_type=db_type)
     dbh.set_db_path(db_path=db_path)
     dbh.set_db_name(db_name=db_name)
@@ -41,6 +42,7 @@ def load_db(db_type=None,
 
     if db_file_exists is True and db_tables_exists is True:
         db = {'db_name': db_name, 'db_type': db_type, 'db_path': db_path}
+        print(db)
 
         db_temp = ShelveHandler()
         db_temp.write_shelve(db)
@@ -75,6 +77,8 @@ def set_user(db_user=None):
 
     db_temp = ShelveHandler()
     db_dict = db_temp.read_shelve_by_keys(["db_name", "db_type", "db_path"])
+
+    print(db_dict)
 
     dbh = DataBaseHandler(db_type=db_dict["db_type"])
     dbh.set_db_path(db_path=db_dict["db_path"])
