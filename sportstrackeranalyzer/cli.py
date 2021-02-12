@@ -17,10 +17,9 @@ from .module.simple_actions import find_tracks
 from .module.simple_actions import remove_tracks
 from .module.simple_actions import remove_leaves
 from .module.simple_actions import collect_cli_user_info
-from .module.simple_actions import sync_strava
+from .module.simple_actions import add_tracks
 
-from .module.runtastic import Runtastic
-from .module.strava import Strava
+
 
 shelve_temp = os.path.join(os.path.expanduser("~"), ".sta")
 
@@ -88,50 +87,15 @@ def main():
         track_source = args.track_source
         source_type = args.source_type
         overwrite = args.overwrite
+        input_path = args.path
+        date_obj = args.date
 
-        if track_source is None or source_type is None:
-            print("You did not specify source-type or track-source")
-            exit()
-        elif track_source == "runtastic" and source_type == "database":
-            #This if/else condition is supposed to import a runtastic
-            #database dump into the database
+        add_tracks(track_source=track_source,
+                   source_type=source_type,
+                   input_path=input_path,
+                   overwrite=overwrite,
+                   date_obj=date_obj)
 
-            #A database dump needs a path from where it is imported:
-            if args.path is None:
-                print("To import a RUNTASTIC database dump from a path")
-                print("or *gz file, you need to specify the path by handing it over")
-                print("to your command line call: --path /path/to/source")
-                exit()
-
-            rt = Runtastic()
-            rt.setup_path(type=source_type,
-                          path=args.path)
-
-            p = rt.get_session_Ids()
-
-
-            rt.import_runtastic_sessions(overwrite=overwrite)
-
-        elif track_source == "strava" and source_type == "gps":
-            st = Strava()
-
-            if args.path is None:
-                print("To import Strava gps files")
-
-            #test if args.path is file or path and determine what to do:
-            if os.path.isfile(args.path):
-                st.set_gps_file(gps_file=args.path)
-                st.import_strava_gpx()
-            elif os.path.isdir(args.path):
-                st.set_gps_path(gps_path=args.path)
-                st.import_strava_gpx_from_path()
-
-        elif track_source == "strava" and source_type == "api":
-            st = Strava()
-
-            sync_date = args.date #extract datetimes to sync
-            st.set_activity_dates(sync_date)
-            st.import_strava_api()
 
 
     elif args._[0] == "findTracks":
@@ -165,11 +129,6 @@ def main():
         app.register_blueprint(urls_blueprint)
         Timer(1, open_browser).start()
         app.run(debug=True)
-
-    elif args._[0] == "syncStrava":
-
-        date = args.date
-
 
 
     return 0

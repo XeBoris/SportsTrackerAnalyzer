@@ -10,6 +10,9 @@ from .shelve_handler import ShelveHandler
 
 from .strava import StravaTokenHandler
 
+from .runtastic import Runtastic
+from .strava import Strava
+
 """
 This file contains simple actions which are defined outside of classes because of their simplicity
 """
@@ -29,6 +32,7 @@ def create_db(db_type=None,
 def load_db(db_type=None,
             db_name=None,
             db_path=None):
+
     dbh = DataBaseHandler(db_type=db_type)
     dbh.set_db_path(db_path=db_path)
     dbh.set_db_name(db_name=db_name)
@@ -38,6 +42,7 @@ def load_db(db_type=None,
 
     if db_file_exists is True and db_tables_exists is True:
         db = {'db_name': db_name, 'db_type': db_type, 'db_path': db_path}
+        print(db)
 
         db_temp = ShelveHandler()
         db_temp.write_shelve(db)
@@ -72,6 +77,8 @@ def set_user(db_user=None):
 
     db_temp = ShelveHandler()
     db_dict = db_temp.read_shelve_by_keys(["db_name", "db_type", "db_path"])
+
+    print(db_dict)
 
     dbh = DataBaseHandler(db_type=db_dict["db_type"])
     dbh.set_db_path(db_path=db_dict["db_path"])
@@ -163,6 +170,53 @@ def mod_user(key, value, date):
     dbh.set_db_name(db_name=db_dict["db_name"])
 
     dbh.mod_user_by_hash(db_dict["db_hash"], key, value, date)
+
+def add_tracks(track_source, source_type, input_path, overwrite, date_obj):
+
+
+
+    if track_source is None or source_type is None:
+        print("You did not specify source-type or track-source")
+        exit()
+    elif track_source == "runtastic" and source_type == "database":
+        # This if/else condition is supposed to import a runtastic
+        # database dump into the database
+
+        # A database dump needs a path from where it is imported:
+        if input_path is None:
+            print("To import a RUNTASTIC database dump from a path")
+            print("or *gz file, you need to specify the path by handing it over")
+            print("to your command line call: --path /path/to/source")
+            exit()
+
+        rt = Runtastic()
+        rt.setup_path(type=source_type,
+                      path=input_path)
+
+        p = rt.get_session_Ids()
+
+        rt.import_runtastic_sessions(overwrite=overwrite)
+
+    elif track_source == "strava" and source_type == "gps":
+        st = Strava()
+
+        if input_path is None:
+            print("To import Strava gps files")
+
+        # test if args.path is file or path and determine what to do:
+        if os.path.isfile(input_path):
+            st.set_gps_file(gps_file=input_path)
+            st.import_strava_gpx()
+        elif os.path.isdir(input_path):
+            st.set_gps_path(gps_path=input_path)
+            st.import_strava_gpx_from_path()
+
+    elif track_source == "strava" and source_type == "api":
+        st = Strava()
+
+        sync_date = date_obj  # extract datetimes to sync
+        st.set_activity_dates(sync_date)
+        st.import_strava_api()
 
 
 def find_tracks(track_source, source_type, date):
@@ -383,56 +437,4 @@ def remove_leaves(track_hash):
         print("Something went wrong while removing the leaf")
     exit()
 
-def sync_strava(date=None):
-    date_beg = None
-    date_end = None
-    if date is not None:
-        date_beg = date.split("-")[0]
-        date_end = date.split("-")[1]
-    if "T" in date_beg:
-        date_beg = datetime.datetime.strptime(date_beg, "%Y%m%dT%H%M%S")
-    else:
-        date_beg = datetime.datetime.strptime(date_beg, "%Y%m%d")
-    if "T" in date_end:
-        date_end = datetime.datetime.strptime(date_end, "%Y%m%dT%H%M%S")
-    else:
-        date_end = datetime.datetime.strptime(date_end, "%Y%m%d")
-
-    sth = StravaTokenHandler()
-    sth.load_token()
-    sth.update_token()
-    del sth
-
-    db_temp = ShelveHandler()
-    db_dict = db_temp.read_shelve_by_keys(["db_name",
-                                           "db_type",
-                                           "db_path",
-                                           "db_user",
-                                           "db_hash",
-                                           "db_strava"])
-
-    dbh = DataBaseHandler(db_type=db_dict["db_type"])
-    dbh.set_db_path(db_path=db_dict["db_path"])
-    dbh.set_db_name(db_name=db_dict["db_name"])
-
-    print(db_dict)
-
-    print(date_beg, date_end)
-    print("Sync Strava")
-
-    date_beg = date_beg.strftime("%Y-%m-%dT%H:%M:%SZ")
-    date_end = date_end.strftime("%Y-%m-%dT%H:%M:%SZ")
-    print(date_beg, date_end)
-
-    client = Client(access_token=db_dict["db_strava"]["access_token"])
-    athlete = client.get_athlete()
-    athlete_id = athlete.id
-
-
-    for activity in client.get_activities(
-                                          before=date_end,
-                                          after=date_beg,
-                                          limit=5):
-        print(activity.id)
-        print(activity.name)
 
